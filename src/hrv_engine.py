@@ -323,27 +323,26 @@ class HRVEngine:
         return index, hcs
 
     def summary_text(self, index: DailyRegulationIndex) -> str:
-        """生成一句话总结"""
         phase_map = {
-            "menstrual": "月经期", "follicular": "卵泡期",
-            "ovulatory": "排卵期", "luteal": "黄体期", "premenstrual": "经前期",
+            "menstrual": "Menstrual (月经期)", "follicular": "Follicular (卵泡期)",
+            "ovulatory": "Ovulatory (排卵期)", "luteal": "Luteal (黄体期)", "premenstrual": "Premenstrual (经前期)",
         }
         level_map = {
-            "purple": "🟣 最佳状态", "green": "🟢 状态良好",
-            "yellow": "🟡 需要调节", "red": "🔴 需要关注",
+            "purple": "Purple — Peak", "green": "Green — Good",
+            "yellow": "Yellow — Caution", "red": "Red — Rest",
         }
 
         lines = [
-            f"【每日调节指数】{index.score}/100  {level_map.get(index.level, '')}",
-            f"当前阶段：{phase_map.get(index.phase.value, '未知')}",
-            f"恢复速率：{index.recovery.classification} "
-            f"({index.recovery.recovery_time_min:.0f} 分钟恢复)",
+            f"[Regulation Index] {index.score}/100  {level_map.get(index.level, '')}",
+            f"Phase: {phase_map.get(index.phase.value, 'unknown')}",
+            f"Recovery: {index.recovery.classification} "
+            f"({index.recovery.recovery_time_min:.0f}min)",
             "",
-            "中医评估：",
-            f"  气血不足：{index.tcm.qi_blood_deficiency:.0f}/100",
-            f"  肝郁气滞：{index.tcm.liver_depression:.0f}/100",
-            f"  脾虚指数：{index.tcm.spleen_deficiency:.0f}/100",
-            f"  阴阳平衡：{index.tcm.yin_yang_balance:.0f}/100",
+            "TCM assessment:",
+            f"  Qi-blood def.  (气血不足): {index.tcm.qi_blood_deficiency:.0f}/100",
+            f"  Liver stasis   (肝郁气滞): {index.tcm.liver_depression:.0f}/100",
+            f"  Spleen def.    (脾虚):     {index.tcm.spleen_deficiency:.0f}/100",
+            f"  Yin-yang bal.  (阴阳平衡): {index.tcm.yin_yang_balance:.0f}/100",
         ]
         return "\n".join(lines)
 
@@ -353,11 +352,9 @@ class HRVEngine:
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("═══ Hidden Chain HRV Engine v0.2 ═══")
-    print("中医 + 穿戴数据审计的 HRV 分析引擎")
-    print("新增：隐链评分 (Hidden Chain Score)\n")
+    print("=== Hidden Chain HRV Engine v0.2 ===")
+    print("Wearable HRV + Cycle Calibration + TCM Scoring\n")
 
-    # 模拟数据
     records = [
         HRVRecord(timestamp="2026-07-21T07:00", rmssd=42.5, sdnn=52.0,
                   hf=780, lf=1050, heart_rate=68, is_resting=True),
@@ -366,24 +363,18 @@ if __name__ == "__main__":
         HRVRecord(timestamp="2026-07-21T22:00", rmssd=46.0, sdnn=55.5,
                   hf=820, lf=980, heart_rate=65, is_resting=True),
     ]
-    cycle_days = [10, 10, 10]  # 卵泡期第 10 天
+    cycle_days = [10, 10, 10]
 
-    # 运行
     engine = HRVEngine()
     engine.fit_calibrator(records, cycle_days)
-    regulation_index, hcs = engine.analyze_day(
-        records[0],
-        event_records=records[1:2],
-        day_of_cycle=10,
-        baseline_hrv=42.0,
+    reg_idx, hcs = engine.analyze_day(
+        records[0], event_records=records[1:2], day_of_cycle=10, baseline_hrv=42.0
     )
 
-    # 输出
     print(hcs.report())
     print()
 
-    # 趋势
     history = [72, 68, 75, 70, 74, 78, 76]
     trend = TrendAnalysis.from_history(history)
     print(trend.report())
-    print("\n═══ 分析完成 ═══")
+    print("\n=== Analysis complete ===")

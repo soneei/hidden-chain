@@ -24,20 +24,19 @@ class ScoreLevel(Enum):
     @property
     def label(self) -> str:
         return {
-            "purple": "🟣 最佳状态",
-            "green": "🟢 状态良好",
-            "yellow": "🟡 需要调节",
-            "red": "🔴 需要关注",
+            "purple": "Purple — Peak",
+            "green": "Green — Good",
+            "yellow": "Yellow — Caution",
+            "red": "Red — Rest",
         }[self.value]
 
     @property
     def advice(self) -> str:
-        """每个等级的一句结论"""
         return {
-            "purple": "气血充盈，阴阳调和，今日宜挑战、宜创造",
-            "green": "状态在线，正气得养，保持节奏即可",
-            "yellow": "肝气微郁，建议疏解：深呼吸 3 分钟、散步 15 分钟",
-            "red": "正气不足，今日宜休养、忌硬撑。早睡 + 温热水泡脚",
+            "purple": "Qi and blood are full, yin-yang balanced. A day for challenge and creation.",
+            "green": "Steady rhythm, vital energy is nourished. Maintain your pace.",
+            "yellow": "Liver qi mildly stagnant. Try 3 min deep breathing and a 15-min walk.",
+            "red": "Vital energy is low. Prioritize rest. Early sleep + warm foot soak.",
         }[self.value]
 
 
@@ -94,42 +93,40 @@ class HiddenChainScore:
         return self.level.advice
 
     def report(self) -> str:
-        """完整报告"""
-        phase_cn = self.phase.label_cn
+        phase_en = self.phase.value
         key_issue = self._identify_key_issue()
 
         lines = [
-            f"═══ 隐链评分：{self.score}/100  {self.level.label} ═══",
+            f"=== Hidden Chain Score: {self.score}/100  {self.level.label} ===",
             f"",
-            f"一句话：{self.one_liner()}",
+            f"Takeaway: {self.one_liner()}",
             f"",
             f"──────────────────────────────",
-            f"当前阶段：{phase_cn}",
-            f"子维度：",
-            f"  HRV 基线  {self.hrv_baseline:>3}/100  {'█' * (self.hrv_baseline // 10)}",
-            f"  恢复速度  {self.recovery_index:>3}/100  {'█' * (self.recovery_index // 10)}",
-            f"  中医平衡  {self.tcm_balance:>3}/100  {'█' * (self.tcm_balance // 10)}",
-            f"  周期调节  {self.phase_adjustment:>+3}",
+            f"Cycle phase: {phase_en}",
+            f"Sub-scores:",
+            f"  HRV baseline  {self.hrv_baseline:>3}/100  {'#' * (self.hrv_baseline // 10)}",
+            f"  Recovery      {self.recovery_index:>3}/100  {'#' * (self.recovery_index // 10)}",
+            f"  TCM balance   {self.tcm_balance:>3}/100  {'#' * (self.tcm_balance // 10)}",
+            f"  Phase adj.    {self.phase_adjustment:>+3}",
             f"──────────────────────────────",
-            f"中医辨证：",
-            f"  气血不足  {self.qi_blood:>5.0f}/100",
-            f"  肝郁气滞  {self.liver_depression:>5.0f}/100",
-            f"  脾虚指数  {self.spleen_deficiency:>5.0f}/100",
+            f"TCM diagnostics:",
+            f"  Qi-blood deficiency   (气血不足): {self.qi_blood:>5.0f}/100",
+            f"  Liver qi stagnation   (肝郁气滞): {self.liver_depression:>5.0f}/100",
+            f"  Spleen deficiency     (脾虚):     {self.spleen_deficiency:>5.0f}/100",
             f"──────────────────────────────",
         ]
         if key_issue:
-            lines.append(f"⚠️ 主要关注：{key_issue}")
+            lines.append(f"Warning — primary concern: {key_issue}")
         return "\n".join(lines)
 
     def _identify_key_issue(self) -> Optional[str]:
-        """识别最关键的问题"""
         issues = []
         if self.qi_blood > 60:
-            issues.append(f"气血不足 ({self.qi_blood:.0f}/100)")
+            issues.append(f"Qi-blood deficiency ({self.qi_blood:.0f}/100)")
         if self.liver_depression > 50:
-            issues.append(f"肝郁气滞 ({self.liver_depression:.0f}/100)")
+            issues.append(f"Liver qi stagnation ({self.liver_depression:.0f}/100)")
         if self.spleen_deficiency > 60:
-            issues.append(f"脾虚 ({self.spleen_deficiency:.0f}/100)")
+            issues.append(f"Spleen deficiency ({self.spleen_deficiency:.0f}/100)")
         return " / ".join(issues) if issues else None
 
 
@@ -230,17 +227,16 @@ class TrendAnalysis:
 
     def report(self) -> str:
         trend_labels = {
-            "improving": "↑ 持续改善",
-            "stable": "→ 保持稳定",
-            "declining": "↓ 需要留意",
+            "improving": "↑ Improving",
+            "stable": "→ Stable",
+            "declining": "↓ Declining",
         }
-        lines = [
-            "─── 趋势 ───",
-            f"本周均值：{self.week_avg:.0f}  本月均值：{self.month_avg:.0f}",
-            f"周趋势：{trend_labels[self.week_trend]}",
-            f"月趋势：{trend_labels[self.month_trend]}",
-        ]
-        return "\n".join(lines)
+        return "\n".join([
+            "─── Trend ───",
+            f"Weekly avg: {self.week_avg:.0f}   Monthly avg: {self.month_avg:.0f}",
+            f"Week: {trend_labels[self.week_trend]}",
+            f"Month: {trend_labels[self.month_trend]}",
+        ])
 
     @classmethod
     def from_history(cls, scores: list[int]) -> "TrendAnalysis":
