@@ -77,7 +77,13 @@
   <div id="historyTable" style="font-size:12px;max-height:200px;overflow-y:auto"></div>
 </div>
 
+<div class="card" id="chartCard" style="display:none">
+  <h3 style="font-size:14px;margin-bottom:10px">Score trend (14 days)</h3>
+  <svg id="scoreChart" width="100%" height="160" viewBox="0 0 440 160" style="display:block"></svg>
+</div>
+
 <div class="footer">
+  <a href="#" onclick="downloadReport();return false">Download report</a> ·
   <a href="#" onclick="exportData();return false">Export data</a> ·
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   <a href="#" onclick="document.getElementById('importFile').click();return false">Import data</a> ·
@@ -151,11 +157,11 @@ function submitCheckin() {
 
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(r => r.ok?r.json():Promise.reject())
-    .then(r => { if(r.error){alert(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:r.score,phase:r.phase}); renderHistory(); })
+      .then(r => { if(r.error){alert(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
     .catch(() => {
       const sc = computePreview(h,r,c); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
       showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true});
-      renderHistory();
+      renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
 }
@@ -183,8 +189,87 @@ function showResult(r) {
   });
 }
 
+async function renderChart() {
+  const data = await all();
+  if (data.length < 2) return;
+  const card = document.getElementById('chartCard');
+  card.style.display = 'block';
+
+  const last14 = data.slice(-14);
+  const max = Math.max(...last14.map(d => d.score || 0), 80);
+  const min = Math.min(...last14.map(d => d.score || 0), 20);
+  const range = max - min || 1;
+  const w = 440, h = 160, pad = {l:40, r:10, t:10, b:30};
+  const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+  const stepX = last14.length > 1 ? pw / (last14.length - 1) : pw;
+
+  // grid lines
+  let grid = '';
+  for (let s = 0; s <= 100; s += 20) {
+    const y = pad.t + ph - ((s - min) / range) * ph;
+    if (y < pad.t || y > h - pad.b) continue;
+    const ys = Math.max(pad.t, Math.min(h - pad.b, y));
+    grid += `<line x1="${pad.l}" y1="${ys}" x2="${w-pad.r}" y2="${ys}" stroke="#eee" stroke-width="0.5"/>`;
+    grid += `<text x="${pad.l-4}" y="${ys+4}" font-size="9" fill="#888" text-anchor="end">${s}</text>`;
+  }
+
+  // line path
+  let path = '';
+  last14.forEach((d, i) => {
+    const x = pad.l + i * stepX;
+    const y = pad.t + ph - ((d.score - min) / range) * ph;
+    path += `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)} `;
+  });
+
+  // dots + dates
+  let dots = '';
+  last14.forEach((d, i) => {
+    if (!d.score) return;
+    const x = pad.l + i * stepX;
+    const y = pad.t + ph - ((d.score - min) / range) * ph;
+    const c = d.score >= 80 ? '#7c3aed' : d.score >= 60 ? '#16a34a' : d.score >= 30 ? '#ca8a04' : '#dc2626';
+    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${c}"/>`;
+    if (last14.length <= 10 || i % 2 === 0) {
+      dots += `<text x="${x.toFixed(1)}" y="${h-8}" font-size="8" fill="#888" text-anchor="middle">${d.date.slice(5)}</text>`;
+    }
+  });
+
+  document.getElementById('scoreChart').innerHTML = grid +
+    `<path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` + dots;
+}
+
+function downloadReport() {
+  all().then(data => {
+    if (!data.length) { alert('No data yet.'); return; }
+    const latest = data[data.length-1];
+    const recent = data.slice(-7);
+    const scores = recent.map(d => d.score).filter(Boolean);
+    const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '-';
+    const first = scores[0], last = scores[scores.length-1];
+    const trend = last > first+5 ? '↑ Improving' : last < first-5 ? '↓ Declining' : '→ Stable';
+
+    let text = '=== Hidden Chain Health Report ===\n';
+    text += `Generated: ${new Date().toISOString().slice(0,10)}\n`;
+    text += `Days tracked: ${data.length}\n`;
+    text += `Latest score: ${latest.score}/100\n`;
+    text += `7-day avg: ${avg}\n`;
+    text += `Week trend: ${trend}\n\n`;
+    text += '--- Daily History ---\n';
+    recent.reverse().forEach(d => {
+      const p = d.cycle_day <= 5 ? 'Menstrual' : d.cycle_day <= 14 ? 'Follicular' : d.cycle_day <= 17 ? 'Ovulatory' : d.cycle_day <= 24 ? 'Luteal' : 'Premenstrual';
+      text += `${d.date} | Day ${d.cycle_day} (${p}) | HRV ${d.hrv_rmssd}ms | RHR ${d.resting_hr}bpm | Score ${d.score}\n`;
+    });
+
+    const blob = new Blob([text], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `hidden_chain_report_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+  });
+}
+
 // ── Init ──
-idb().then(() => renderHistory());
+idb().then(() => { renderHistory(); renderChart(); });
 const savedStart = localStorage.getItem('hc_periodStart');
 const savedLen = localStorage.getItem('hc_cycleLength');
 if (savedStart) document.getElementById('periodStart').value = savedStart;
