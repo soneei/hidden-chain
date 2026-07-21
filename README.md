@@ -1,50 +1,82 @@
 # Hidden Chain
 
-**中医 + 穿戴数据审计的数字健康算法底座**
+**Wearable-to-TCM (Traditional Chinese Medicine) health scoring engine.**
 
-Hidden Chain 是一套将可穿戴设备（智能手表等）采集的生理信号，与中医辨证理论相结合的算法框架。核心思路是：用现代传感器数据为中医的"气血"、"肝郁"、"脾虚"等概念建立可量化的生物标志物映射。
+A single daily number that tells you how your body is doing — built on peer-reviewed autonomic neuroscience, calibrated for the menstrual cycle (月经周期), and mapped to TCM diagnostics (中医辨证).
 
-## 核心理念
+## What it does
 
 ```
-穿戴设备原始信号 → 西医指标层 → 中医映射层 → 可执行健康建议
-     ↓                ↓              ↓               ↓
-  HRV/心率/血氧     CVC/CVA        肝郁/脾虚        饮食/作息调节
-  睡眠/压力        恢复速率        气血/阴阳        干预建议
+Your smartwatch data  →  Cycle-calibrated HRV analysis  →  Hidden Chain Score (0-100) + TCM insight
 ```
 
-## 当前模块
+You wear a Huawei/Apple/OPPO watch. Hidden Chain reads your heart rate variability (HRV, 心率变异性), corrects for where you are in your menstrual cycle (so normal luteal-phase dips don't get flagged as "stress"), then maps the result to TCM concepts: qi-blood deficiency (气血不足), liver qi stagnation (肝郁气滞), spleen deficiency (脾虚).
 
-### v0.1 — HRV 分析引擎（开发中）
+**One number. One sentence. No dashboard fatigue.**
 
-基于三篇权威论文构建的心率变异性分析框架：
+## Quick links
 
-- **双轨处理**：静息轨（晨起/睡前基线）+ 事件轨（压力/事件反应）
-- **周期校准**：月经周期 5 阶段分层归一化（论文证实 HRV 在经前期比卵泡期低 3-9%）
-- **恢复速率**：压力事件后 HRV 恢复速度建模
-- **中医映射**：HRV 指标 → 气血/肝郁/脾虚评分
+**[Live demo →](https://04259439555a4223872216bed9c70dd5.app.codebuddy.work)** — 30-second daily check-in form with instant scoring.
 
-## 论文来源
+## Try it
 
-| # | 论文标题 | 年份 | 核心贡献 |
+```bash
+git clone git@github.com:soneei/hidden-chain.git
+cd hidden-chain
+pip install -r requirements.txt
+python server.py
+```
+
+Open http://localhost:5000 — enter HRV, resting heart rate, and cycle day. Get your score.
+
+## Research foundation
+
+Built directly on three Tier 1 papers (Q1 journals, meta-analyses):
+
+| # | Paper | Journal | Core contribution |
 |---|---|---|---|
-| 1 | Cardiac vagal control as a marker of emotion regulation | 2017 | 建立静息 CVC + 相位性 CVC 双轨框架 |
-| 2 | CVA changes across the menstrual cycle (meta-analysis) | 2019 | 发现 CVA 从卵泡期到黄体期显著下降 d=-0.39 |
-| 3 | Neurovisceral integration model | — | CAN → CVA → 情绪/认知调节的理论框架 |
+| 1 | HRV as a biomarker for self-regulation (Holzman & Bridgett, 2017) | *Neuroscience & Biobehavioral Reviews* (IF 9.0) | 123-study meta-analysis: HRV → self-regulation confirmed |
+| 2 | Wearable HRV across the menstrual cycle (de Jager et al., 2025) | *Sports Medicine* (IF 13.0) | Living systematic review: 3-9% RMSSD drop across cycle phases |
+| 3 | Neurovisceral integration model (Thayer & Lane, 2009) | *Neuroscience & Biobehavioral Reviews* (IF 9.0) | 1,788 citations: CAN → vagus → heart → health |
 
-## 项目结构
+Full notes and quality standards in `/research`.
+
+## How the score works
 
 ```
-hidden-chain/
-├── README.md              ← 项目简介
-├── research/              ← 论文笔记（每天阅读更新）
-├── design/                ← 算法设计文档
-├── src/                   ← 核心代码
-│   └── hrv_engine.py      ← HRV 分析引擎（首个模块）
-├── data/                  ← 示例数据（脱敏）
-└── .gitignore
+Hidden Chain Score = baseline HRV (0.30)
+                   + recovery rate (0.25)
+                   + TCM balance (0.25)
+                   + cycle adjustment (0.20)
 ```
 
-## 许可
+| Score | Level | Meaning |
+|---|---|---|
+| 81-100 | Purple | Peak — qi and blood are full. Challenge yourself. |
+| 61-80 | Green | Good — steady rhythm, maintain your pace. |
+| 31-60 | Yellow | Caution — liver qi mildly stagnant. Breathe, walk. |
+| 0-30 | Red | Rest — vital energy low. Prioritize recovery. |
+
+## Project structure
+
+```
+src/          Core engine (zero-dep Python)
+  hrv_engine.py             Cycle calibration + dual-track HRV processing
+  hidden_chain_score.py     Scoring engine + trend analysis
+  data_loader.py            Legacy Excel → engine bridge
+  device_adapters.py        Huawei / Apple / OPPO export parsers
+research/     Paper notes (Tier 1 only, quality standard enforced)
+design/       Architecture docs (Founder-Market Fit, 3-layer model, DTx roadmap)
+data/         Web form, daily log template
+server.py     Flask API (SQLite backend, ready for deployment)
+```
+
+## Roadmap
+
+- **v0.3** (now): Web check-in + device adapters
+- **v0.5**: Drag-and-drop watch export import + SQLite multi-user persistence
+- **v1.0**: Chat-based interaction (DingTalk bot / Telegram)
+
+## License
 
 MIT
