@@ -173,7 +173,7 @@
 <body>
 
 <h1>Hidden Chain</h1>
-<p class="subtitle">30-second daily check-in. Score appears instantly.</p>
+<p class="subtitle">30-second daily check-in. Score appears instantly. <span id="statusBadge" style="font-size:11px;padding:3px 8px;border-radius:10px;background:#fef3c7;color:#92400e">Checking server...</span></p>
 
 <div class="card">
   <div class="field">
@@ -214,7 +214,9 @@
 </div>
 
 <div class="footer">
-  Data saved locally. Export runs the full engine.<br>
+  <span id="offlineDownload" style="display:none">
+    <a href="#" onclick="downloadHistory();return false">Download my history (JSON)</a> ·
+  </span>
   <a href="https://github.com/soneei/hidden-chain" target="_blank">github.com/soneei/hidden-chain</a>
 </div>
 
@@ -382,6 +384,32 @@ function showResult(r) {
 // Load last values
 const last = JSON.parse(localStorage.getItem('hidden_chain_last') || '{}');
 if (last.cycle_day) document.getElementById('cycleDay').value = last.cycle_day;
+
+// Check server connectivity
+fetch('/api/dashboard/default')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(() => {
+    document.getElementById('statusBadge').innerHTML = 'Server connected — data saved permanently';
+    document.getElementById('statusBadge').style.background = '#dcfce7';
+    document.getElementById('statusBadge').style.color = '#166534';
+  })
+  .catch(() => {
+    document.getElementById('statusBadge').innerHTML = 'Offline demo — run <code>python server.py</code> to save permanently';
+    document.getElementById('statusBadge').style.background = '#fef3c7';
+    document.getElementById('statusBadge').style.color = '#92400e';
+    document.getElementById('offlineDownload').style.display = 'inline';
+  });
+
+// Download history button (for offline users)
+function downloadHistory() {
+  const history = localStorage.getItem('hidden_chain_history');
+  if (!history) { alert('No history saved yet.'); return; }
+  const blob = new Blob([JSON.stringify(JSON.parse(history), null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'hidden_chain_history.json';
+  a.click(); URL.revokeObjectURL(url);
+}
 </script>
 </body>
 </html>
