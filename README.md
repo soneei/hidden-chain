@@ -4,6 +4,12 @@
 
 Wearable-to-TCM (Traditional Chinese Medicine) health scoring engine. A single daily number built on peer-reviewed autonomic neuroscience, calibrated for the menstrual cycle (月经周期), and mapped to TCM diagnostics (中医辨证).
 
+<p align="center">
+  <a href="https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work">
+    <strong>→ Try the live demo ←</strong>
+  </a>
+</p>
+
 ## What it does
 
 ```
@@ -16,7 +22,7 @@ You wear a Huawei/Apple/OPPO watch. Hidden Chain reads your heart rate variabili
 
 ## Quick links
 
-**[Live demo →](https://04259439555a4223872216bed9c70dd5.app.codebuddy.work)** — 30-second daily check-in form with instant scoring.
+**[Live demo →](https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work)** — Same page as above. 30-second daily check-in, stores your history.
 
 ## Try it
 
