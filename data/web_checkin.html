@@ -310,7 +310,8 @@ function submitCheckin() {
     .then(r => {
       if (r.error) { alert(r.error); return; }
       showResult(r);
-      localStorage.setItem('hidden_chain_last', JSON.stringify(payload));
+      const last = { cycle_day: cycleDay };
+      localStorage.setItem('hidden_chain_last', JSON.stringify(last));
     })
     .catch(() => {
       const r = computePreviewScore(hrv, rhr, cycleDay);
@@ -325,6 +326,23 @@ function submitCheckin() {
 }
 
 function showResult(r) {
+  const history = JSON.parse(localStorage.getItem('hidden_chain_history') || '[]');
+
+  // Compare with previous day
+  let delta = '';
+  if (history.length > 0) {
+    const prev = history[history.length - 1];
+    const diff = r.score - prev.score;
+    if (diff > 5) delta = `<span style="color:var(--green)">↑ +${diff} from yesterday (${prev.score})</span><br>`;
+    else if (diff < -5) delta = `<span style="color:var(--red)">↓ ${diff} from yesterday (${prev.score})</span><br>`;
+    else delta = `<span style="color:var(--muted)">→ similar to yesterday (${prev.score})</span><br>`;
+  }
+
+  // Save to history
+  const entry = { date: new Date().toISOString().slice(0,10), score: r.score, phase: r.phase, cycDay: document.getElementById('cycleDay').value };
+  history.push(entry);
+  if (history.length > 90) history.shift(); // keep last 90 days
+  localStorage.setItem('hidden_chain_history', JSON.stringify(history));
   const clsMap = { purple: 'score-purple', green: 'score-green', yellow: 'score-yellow', red: 'score-red' };
   const circle = document.getElementById('scoreCircle');
   circle.textContent = r.score;
@@ -336,6 +354,7 @@ function showResult(r) {
   const t = r.tcm || {};
   const tr = r.trend || {};
   let html =
+    `${delta}<br>` +
     `<strong>Phase:</strong> ${r.phase} (adjust ${s.phase_adjustment > 0 ? '+' + s.phase_adjustment : s.phase_adjustment})<br>` +
     `<strong>HRV baseline:</strong> ${s.hrv_baseline}/100 ` +
     `<span class="bar-bg"><span class="bar-fill" style="width:${s.hrv_baseline}%"></span></span><br>` +
