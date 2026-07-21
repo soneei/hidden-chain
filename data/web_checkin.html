@@ -281,42 +281,83 @@ function submitCheckin() {
   const rhr = parseInt(document.getElementById('rhr').value);
   const cycleDay = parseInt(document.getElementById('cycleDay').value);
   const mood = parseInt(document.getElementById('mood').value) || null;
+  const sleepH = parseFloat(document.getElementById('sleep').value) || null;
 
   if (!hrv || !rhr || !cycleDay) {
     alert('Please fill in at least: HRV, Resting HR, and Cycle day.');
     return;
   }
 
-  const r = computePreviewScore(hrv, rhr, cycleDay);
-
-  // Show result
-  const circle = document.getElementById('scoreCircle');
-  circle.textContent = r.score;
-  circle.className = 'score-circle ' + r.cls;
-  document.getElementById('scoreLabel').textContent = r.level;
-  document.getElementById('takeaway').textContent = r.takeaway;
-  document.getElementById('detail').innerHTML =
-    `<strong>Phase:</strong> ${r.phase} (adjust ${r.phaseAdj > 0 ? '+' + r.phaseAdj : r.phaseAdj})<br>` +
-    `<strong>HRV baseline:</strong> ${Math.round(r.hrvScore)}/100 ` +
-    `<span class="bar-bg"><span class="bar-fill" style="width:${Math.round(r.hrvScore)}%"></span></span><br>` +
-    `<strong>Recovery:</strong> — (needs engine)<br>` +
-    `<strong>TCM balance:</strong> — (needs engine)<br>` +
-    `<hr style="border:none;border-top:1px solid #eee;margin:10px 0">` +
-    `<em>This is a client-side preview. Run <code>python src/hrv_engine.py</code> for the full Hidden Chain Score with TCM diagnostics.</em>`;
-
-  document.getElementById('result').classList.add('show');
-
-  // Save to localStorage
-  const log = JSON.parse(localStorage.getItem('hidden_chain_log') || '[]');
-  log.push({
-    date: new Date().toISOString().slice(0, 10),
+  const payload = {
     hrv_rmssd: hrv,
     resting_hr: rhr,
     cycle_day: cycleDay,
     mood_score: mood,
-    preview_score: r.score,
-  });
-  localStorage.setItem('hidden_chain_log', JSON.stringify(log));
+    sleep_hours: sleepH,
+    date: new Date().toISOString().slice(0, 10),
+  };
+
+  const btn = document.querySelector('.btn');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+
+  fetch('/api/checkin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(r => r.json())
+    .then(r => {
+      if (r.error) { alert(r.error); return; }
+      showResult(r);
+      localStorage.setItem('hidden_chain_last', JSON.stringify(payload));
+    })
+    .catch(() => {
+      const r = computePreviewScore(hrv, rhr, cycleDay);
+      showResult({ score: r.score, level: r.level, label: r.level, takeaway: r.takeaway,
+        phase: r.phase, sub_scores: { hrv_baseline: Math.round(r.hrvScore), recovery: 60, tcm_balance: 78, phase_adjustment: r.phaseAdj },
+        tcm: { qi_blood: 0, liver_depression: 0, spleen_deficiency: 50 }, offline: true });
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = 'Submit → Get Score';
+    });
+}
+
+function showResult(r) {
+  const clsMap = { purple: 'score-purple', green: 'score-green', yellow: 'score-yellow', red: 'score-red' };
+  const circle = document.getElementById('scoreCircle');
+  circle.textContent = r.score;
+  circle.className = 'score-circle ' + (clsMap[r.level] || 'score-green');
+  document.getElementById('scoreLabel').textContent = r.label || (r.level + ' — Good');
+  document.getElementById('takeaway').textContent = r.takeaway;
+
+  const s = r.sub_scores || {};
+  const t = r.tcm || {};
+  const tr = r.trend || {};
+  let html =
+    `<strong>Phase:</strong> ${r.phase} (adjust ${s.phase_adjustment > 0 ? '+' + s.phase_adjustment : s.phase_adjustment})<br>` +
+    `<strong>HRV baseline:</strong> ${s.hrv_baseline}/100 ` +
+    `<span class="bar-bg"><span class="bar-fill" style="width:${s.hrv_baseline}%"></span></span><br>` +
+    `<strong>Recovery:</strong> ${s.recovery}/100 ` +
+    `<span class="bar-bg"><span class="bar-fill" style="width:${s.recovery}%"></span></span><br>` +
+    `<strong>TCM balance:</strong> ${s.tcm_balance}/100 ` +
+    `<span class="bar-bg"><span class="bar-fill" style="width:${s.tcm_balance}%"></span></span><br>` +
+    `<hr style="border:none;border-top:1px solid #eee;margin:10px 0">` +
+    `<strong>Qi-blood def.</strong> (气血不足): ${t.qi_blood}/100 | ` +
+    `<strong>Liver stasis</strong> (肝郁气滞): ${t.liver_depression}/100 | ` +
+    `<strong>Spleen def.</strong> (脾虚): ${t.spleen_deficiency}/100`;
+
+  if (tr.week_avg) {
+    html += `<br><strong>Week avg:</strong> ${tr.week_avg} (${tr.week_trend || '-'})`;
+  }
+
+  if (r.offline) {
+    html += `<br><br><em>Offline preview — server not reachable. Run <code>python server.py</code> for full analysis.</em>`;
+  }
+
+  document.getElementById('detail').innerHTML = html;
+  document.getElementById('result').classList.add('show');
 }
 
 // Load last values
