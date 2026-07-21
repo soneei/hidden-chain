@@ -41,11 +41,17 @@
 <p class="subtitle">30-second daily check-in. <span id="statusBadge" style="font-size:11px;padding:3px 8px;border-radius:10px;background:#fef3c7;color:#92400e">Local mode — data saved in your browser</span></p>
 
 <div class="card">
-  <div class="field">
-    <label>Cycle day (周期天数)</label>
-    <div class="day-selector" id="daySelector"></div>
-    <input type="number" id="cycleDay" min="1" max="35" placeholder="Or type day number (1-35)" style="margin-top:6px">
+  <div class="inline">
+    <div class="field">
+      <label>Last period started (上次月经)</label>
+      <input type="date" id="periodStart" required>
+    </div>
+    <div class="field">
+      <label>Typical cycle length (周期天数)</label>
+      <input type="number" id="cycleLength" value="28" min="21" max="35" step="1">
+    </div>
   </div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="phaseHint">Select a start date to see your current phase and cycle day.</div>
   <div class="inline">
     <div class="field"><label>HRV — RMSSD (ms)</label><input type="number" id="hrv" step="0.1" min="10" max="200" placeholder="e.g. 45.0" required></div>
     <div class="field"><label>Resting HR (bpm)</label><input type="number" id="rhr" step="1" min="40" max="120" placeholder="e.g. 68" required></div>
@@ -80,6 +86,28 @@
 </div>
 
 <script>
+// ── Phase calculator from calendar ──
+function calcCycleDay() {
+  const d = document.getElementById('periodStart').value;
+  const len = parseInt(document.getElementById('cycleLength').value) || 28;
+  if (!d) return null;
+  const start = new Date(d + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.floor((today - start) / (1000*60*60*24)) + 1; // day 1 = start date
+  if (diff < 1 || diff > len) return null;
+  return { day: diff, length: len, phase: diff<=5?'Menstrual (月经期)':diff<=14?'Follicular (卵泡期)':diff<=17?'Ovulatory (排卵期)':diff<=24?'Luteal (黄体期)':'Premenstrual (经前期)', expected: diff<=5||diff>24?'lower HRV (正常偏低)':diff<=17?'higher HRV (正常偏高)':'moderate HRV' };
+}
+
+function updatePhaseHint() {
+  const c = calcCycleDay();
+  const hint = document.getElementById('phaseHint');
+  if (!c) { hint.textContent = 'Select a start date to see your current phase and cycle day.'; return; }
+  hint.innerHTML = `Today is <strong>Day ${c.day}</strong> of ${c.length} — <strong>${c.phase}</strong> (this phase typically has ${c.expected}).`;
+}
+
+document.getElementById('periodStart').addEventListener('change', updatePhaseHint);
+document.getElementById('cycleLength').addEventListener('change', updatePhaseHint);
+
 // ── IndexedDB — persistent storage ──
 const DB = 'hcdb', ST = 'logs';
 let db;
@@ -109,15 +137,15 @@ async function renderHistory() {
   document.getElementById('historyTable').innerHTML = '<table style="width:100%;border-collapse:collapse">'+rows+'</table>';
 }
 
-// ── Cycle day clicker ──
-[{d:[1,2,3,4,5],l:'Menstrual'},{d:[6,7,8,9,10,11,12,13,14],l:'Follicular'},{d:[15,16,17],l:'Ovulatory'},{d:[18,19,20,21,22,23,24],l:'Luteal'},{d:[25,26,27,28,29,30,31,32,33,34,35],l:'Premenstrual'}].forEach(p => {
-  p.d.forEach(d => { const b = document.createElement('button'); b.className='day-btn'; b.textContent=d; b.onclick = () => { document.getElementById('cycleDay').value=d; document.querySelectorAll('.day-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }; document.getElementById('daySelector').appendChild(b); });
-});
+// ── Cycle day calculator (calendar-based, updated on date change) ──
 
 // ── Submission ──
 function submitCheckin() {
-  const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value), c = parseInt(document.getElementById('cycleDay').value);
-  if(!h||!r||!c) return alert('Fill in HRV, Resting HR, and Cycle day.');
+  const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
+  const cyc = calcCycleDay();
+  if (!h || !r) return alert('Fill in HRV and Resting Heart Rate.');
+  if (!cyc) return alert('Select your last period start date.');
+  const c = cyc.day;
   const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
   const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
 
@@ -157,6 +185,18 @@ function showResult(r) {
 
 // ── Init ──
 idb().then(() => renderHistory());
+const savedStart = localStorage.getItem('hc_periodStart');
+const savedLen = localStorage.getItem('hc_cycleLength');
+if (savedStart) document.getElementById('periodStart').value = savedStart;
+if (savedLen) document.getElementById('cycleLength').value = savedLen;
+if (savedStart) updatePhaseHint();
+
+function savePeriodToLocal() {
+  localStorage.setItem('hc_periodStart', document.getElementById('periodStart').value);
+  localStorage.setItem('hc_cycleLength', document.getElementById('cycleLength').value);
+}
+document.getElementById('periodStart').addEventListener('change', savePeriodToLocal);
+document.getElementById('cycleLength').addEventListener('change', savePeriodToLocal);
 </script>
 </body>
 </html>
