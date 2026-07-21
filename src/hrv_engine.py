@@ -1,10 +1,13 @@
 """
-Hidden Chain — HRV Analysis Engine v0.1
+Hidden Chain — HRV Analysis Engine v0.2
 ========================================
 中医 + 穿戴数据审计的 HRV 分析核心引擎
 
+v0.2 新增：隐链评分 (Hidden Chain Score)
+  — 业界唯一融合中医辨证的穿戴式 HRV 综合评分
+
 输入：华为手表/PPG设备的 HRV 时序数据
-输出：周期校准后的调节指数 + 中医映射评分
+输出：隐链评分 + 周期校准后的调节指数 + 中医映射评分
 
 依赖：无（仅使用 Python 标准库）
 """
@@ -15,49 +18,34 @@ from enum import Enum
 import statistics
 from collections import defaultdict
 
+# 从评分引擎导入
+from hidden_chain_score import (
+    HiddenChainScore, HiddenChainScorer, ScoreLevel,
+    CyclePhase, TrendAnalysis,
+)
+
 # ──────────────────────────────────────────────
-# 第 2 层：周期阶段定义
+# 第 2 层：扩展 CyclePhase（添加 from_day）
 # ──────────────────────────────────────────────
 
-class CyclePhase(Enum):
-    MENSTRUAL = "menstrual"       # 第 1-5 天
-    FOLLICULAR = "follicular"     # 第 6-14 天（基线推荐窗口）
-    OVULATORY = "ovulatory"       # 第 15-17 天
-    LUTEAL = "luteal"             # 第 18-24 天
-    PREMENSTRUAL = "premenstrual" # 第 25-28 天
+# 给 imported CyclePhase 添加 from_day 方法
+def _cycle_phase_from_day(day: int, cycle_length: int = 28) -> CyclePhase:
+    if day < 1 or day > cycle_length:
+        raise ValueError(f"day must be between 1 and {cycle_length}")
+    if cycle_length != 28:
+        day = int(day * 28 / cycle_length)
+    if 1 <= day <= 5:
+        return CyclePhase.MENSTRUAL
+    elif 6 <= day <= 14:
+        return CyclePhase.FOLLICULAR
+    elif 15 <= day <= 17:
+        return CyclePhase.OVULATORY
+    elif 18 <= day <= 24:
+        return CyclePhase.LUTEAL
+    else:
+        return CyclePhase.PREMENSTRUAL
 
-    @classmethod
-    def from_day(cls, day: int, cycle_length: int = 28) -> "CyclePhase":
-        """根据周期第几天返回阶段"""
-        if day < 1 or day > cycle_length:
-            raise ValueError(f"day must be between 1 and {cycle_length}")
-
-        # 按比例缩放
-        if cycle_length != 28:
-            day = int(day * 28 / cycle_length)
-
-        if 1 <= day <= 5:
-            return cls.MENSTRUAL
-        elif 6 <= day <= 14:
-            return cls.FOLLICULAR
-        elif 15 <= day <= 17:
-            return cls.OVULATORY
-        elif 18 <= day <= 24:
-            return cls.LUTEAL
-        else:
-            return cls.PREMENSTRUAL
-
-    @property
-    def expected_cva_level(self) -> str:
-        """该阶段的预期 CVA 水平"""
-        levels = {
-            "menstrual": "low",
-            "follicular": "high",        # CVA 最高
-            "ovulatory": "high",
-            "luteal": "moderate",
-            "premenstrual": "low",       # CVA 最低
-        }
-        return levels[self.value]
+CyclePhase.from_day = staticmethod(_cycle_phase_from_day)
 
 
 # ──────────────────────────────────────────────
@@ -277,7 +265,9 @@ class HRVEngine:
 
     def __init__(self):
         self.calibrator = CycleCalibrator()
+        self.scorer = HiddenChainScorer()
         self._is_fitted = False
+        self.score_history: list[int] = []
 
     def fit_calibrator(self, records: list[HRVRecord], cycle_days: list[int]):
         """训练周期校准器"""
@@ -289,8 +279,8 @@ class HRVEngine:
     def analyze_day(self, resting_record: HRVRecord,
                     event_records: list[HRVRecord] = None,
                     day_of_cycle: int = 1,
-                    baseline_hrv: float = 40.0) -> DailyRegulationIndex:
-        """分析单日数据，输出完整报告"""
+                    baseline_hrv: float = 40.0) -> tuple[DailyRegulationIndex, HiddenChainScore]:
+        """分析单日数据，输出完整报告（调节指数 + 隐链评分）"""
         phase = CyclePhase.from_day(day_of_cycle)
 
         # 归一化
@@ -315,7 +305,22 @@ class HRVEngine:
             normalized_hrv, resting_record.rmssd, tcm, recovery, phase
         )
 
-        return index
+        # 隐链评分（v0.2 新增）
+        hcs = self.scorer.compute(
+            resting_rmssd=resting_record.rmssd,
+            normalized_hrv=normalized_hrv,
+            recovery_classification=recovery.classification,
+            recovery_rate=recovery.recovery_rate,
+            qi_blood=tcm.qi_blood_deficiency,
+            liver_depression=tcm.liver_depression,
+            spleen_deficiency=tcm.spleen_deficiency,
+            phlegm_turbidity=tcm.phlegm_turbidity,
+            yin_yang_balance=tcm.yin_yang_balance,
+            phase=phase,
+        )
+        self.score_history.append(hcs.score)
+
+        return index, hcs
 
     def summary_text(self, index: DailyRegulationIndex) -> str:
         """生成一句话总结"""
@@ -348,29 +353,37 @@ class HRVEngine:
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("═══ Hidden Chain HRV Engine v0.1 ═══")
-    print("中医 + 穿戴数据审计的 HRV 分析引擎\n")
+    print("═══ Hidden Chain HRV Engine v0.2 ═══")
+    print("中医 + 穿戴数据审计的 HRV 分析引擎")
+    print("新增：隐链评分 (Hidden Chain Score)\n")
 
     # 模拟数据
     records = [
-        HRVRecord(timestamp="2026-07-20T07:00", rmssd=32.5, sdnn=45.2,
-                  hf=650, lf=1200, heart_rate=72, is_resting=True),
-        HRVRecord(timestamp="2026-07-20T12:30", rmssd=28.1, sdnn=38.5,
-                  hf=520, lf=1400, heart_rate=78, event_label="meeting"),
-        HRVRecord(timestamp="2026-07-20T22:00", rmssd=35.8, sdnn=48.1,
-                  hf=720, lf=1100, heart_rate=68, is_resting=True),
+        HRVRecord(timestamp="2026-07-21T07:00", rmssd=42.5, sdnn=52.0,
+                  hf=780, lf=1050, heart_rate=68, is_resting=True),
+        HRVRecord(timestamp="2026-07-21T12:30", rmssd=35.2, sdnn=44.1,
+                  hf=550, lf=1350, heart_rate=74, event_label="meeting"),
+        HRVRecord(timestamp="2026-07-21T22:00", rmssd=46.0, sdnn=55.5,
+                  hf=820, lf=980, heart_rate=65, is_resting=True),
     ]
-    cycle_days = [3, 3, 3]  # 月经期第 3 天
+    cycle_days = [10, 10, 10]  # 卵泡期第 10 天
 
     # 运行
     engine = HRVEngine()
     engine.fit_calibrator(records, cycle_days)
-    result = engine.analyze_day(
+    regulation_index, hcs = engine.analyze_day(
         records[0],
         event_records=records[1:2],
-        day_of_cycle=3,
-        baseline_hrv=35.0,
+        day_of_cycle=10,
+        baseline_hrv=42.0,
     )
 
-    print(engine.summary_text(result))
+    # 输出
+    print(hcs.report())
+    print()
+
+    # 趋势
+    history = [72, 68, 75, 70, 74, 78, 76]
+    trend = TrendAnalysis.from_history(history)
+    print(trend.report())
     print("\n═══ 分析完成 ═══")
