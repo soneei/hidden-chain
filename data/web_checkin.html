@@ -103,15 +103,24 @@ function calcCycleDay() {
   const start = new Date(d + 'T00:00:00');
   const today = new Date(); today.setHours(0,0,0,0);
   const diff = Math.floor((today - start) / (1000*60*60*24)) + 1; // day 1 = start date
-  if (diff < 1 || diff > len) return null;
-  return { day: diff, length: len, phase: diff<=5?'Menstrual (月经期)':diff<=14?'Follicular (卵泡期)':diff<=17?'Ovulatory (排卵期)':diff<=24?'Luteal (黄体期)':'Premenstrual (经前期)', expected: diff<=5||diff>24?'lower HRV (正常偏低)':diff<=17?'higher HRV (正常偏高)':'moderate HRV' };
+  if (diff < 1) return null;
+  // If diff exceeds cycle length, treat as extended luteal / pre-menstrual (use modular day or fall back to luteal phase)
+  const effectiveDay = diff > len ? Math.min(diff, 35) : diff;
+  let phase, expected;
+  if (effectiveDay <= 5) { phase='Menstrual (月经期)'; expected='lower HRV (正常偏低)'; }
+  else if (effectiveDay <= 14) { phase='Follicular (卵泡期)'; expected='higher HRV (正常偏高)'; }
+  else if (effectiveDay <= 17) { phase='Ovulatory (排卵期)'; expected='peak HRV (峰值)'; }
+  else if (effectiveDay <= 24) { phase='Luteal (黄体期)'; expected='moderate HRV (中等)'; }
+  else { phase='Premenstrual (经前期)'; expected='lower HRV (正常偏低)'; }
+  return { day: effectiveDay, length: len, phase, expected, extended: diff > len };
 }
 
 function updatePhaseHint() {
   const c = calcCycleDay();
   const hint = document.getElementById('phaseHint');
   if (!c) { hint.textContent = 'Select a start date to see your current phase and cycle day.'; return; }
-  hint.innerHTML = `Today is <strong>Day ${c.day}</strong> of ${c.length} — <strong>${c.phase}</strong> (this phase typically has ${c.expected}).`;
+  const ext = c.extended ? ` <em>(day ${c.day} exceeds your ${c.length}-day cycle — possible extended cycle or pregnancy)</em>` : '';
+  hint.innerHTML = `Today is <strong>Day ${c.day}</strong> of ${c.length} — <strong>${c.phase}</strong> (this phase typically has ${c.expected}).${ext}`;
 }
 
 document.getElementById('periodStart').addEventListener('change', updatePhaseHint);
@@ -153,7 +162,7 @@ function submitCheckin() {
   const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
   const cyc = calcCycleDay();
   if (!h || !r) return alert('Fill in HRV and Resting Heart Rate.');
-  if (!cyc) return alert('Select your last period start date.');
+  if (!cyc) return alert('Pick a date for your last period start.');
   const c = cyc.day;
   const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
   const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
