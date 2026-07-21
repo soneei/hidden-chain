@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What is Autonomic Age? — Hidden Chain</title>
+<style>
+  :root { --bg:#fafafa; --card:#fff; --text:#222; --muted:#888; --accent:#3b82f6; --green:#16a34a; --yellow:#ca8a04; --red:#dc2626; --purple:#7c3aed; --radius:10px; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); line-height:1.8; padding:20px; max-width:680px; margin:0 auto; font-size:15px; }
+  h1 { font-size:24px; margin:16px 0 8px; }
+  h2 { font-size:18px; margin:28px 0 10px; color:#444; }
+  .card { background:var(--card); border:1px solid #e0e0e0; border-radius:var(--radius); padding:20px; margin-bottom:16px; }
+  .highlight { background:#eff6ff; border-left:3px solid var(--accent); padding:12px 16px; border-radius:6px; margin:12px 0; font-size:14px; }
+  .tip { background:#f0fdf4; border-left:3px solid var(--green); padding:12px 16px; border-radius:6px; margin:12px 0; font-size:14px; }
+  .warn { background:#fef3c7; border-left:3px solid var(--yellow); padding:12px 16px; border-radius:6px; margin:12px 0; font-size:14px; }
+  .compare { display:flex; gap:16px; margin:16px 0; }
+  .compare-box { flex:1; text-align:center; padding:16px; border-radius:var(--radius); }
+  .compare-box.good { background:#dcfce7; }
+  .compare-box.bad { background:#fce4ec; }
+  .compare-box .num { font-size:32px; font-weight:700; }
+  .compare-box .label { font-size:13px; color:#666; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin:12px 0; }
+  td, th { padding:8px 12px; border-bottom:1px solid #eee; text-align:left; }
+  th { color:#666; font-weight:500; font-size:13px; }
+  .bar { display:inline-block; height:8px; border-radius:4px; vertical-align:middle; margin-left:6px; }
+  a { color:var(--accent); }
+  .nav { text-align:center; margin-top:24px; padding-top:16px; border-top:1px solid #eee; }
+</style>
+</head>
+<body>
+
+<h1>What is Autonomic Age?<br><span style="font-size:18px;font-weight:400;color:var(--muted)">什么是自主神经年龄？</span></h1>
+
+<div class="card">
+  <p>你的身份证上写着 34 岁。但你的身体内部——你的神经系统——可能比这个年龄老，也可能比它年轻。</p>
+  <p><strong>Autonomic Age (自主神经年龄)</strong> 就是你的神经调节系统相当于多少岁。</p>
+
+  <div class="compare">
+    <div class="compare-box good">
+      <div class="num" style="color:var(--green)">28</div>
+      <div class="label">Autonomic Age<br>实际年龄 34 → 身体像 28 岁</div>
+    </div>
+    <div class="compare-box bad">
+      <div class="num" style="color:var(--red)">52</div>
+      <div class="label">Autonomic Age<br>实际年龄 34 → 身体像 52 岁</div>
+    </div>
+  </div>
+</div>
+
+<h2>它是怎么算出来的？</h2>
+
+<div class="card">
+  <p>你的智能手表每天测量 <strong>HRV</strong> (心率变异性, heart rate variability)——心跳与心跳之间的微小时间差。这不是一个固定的节奏，而是不断变化的。</p>
+
+  <div class="highlight">
+    <strong>简单比喻</strong>：一个健康的心脏像一个技艺精湛的爵士鼓手——它不按节拍器走，而是灵活地加速和减速，随时适应身体的需求。HRV 越高，说明这个鼓手越厉害。
+  </div>
+
+  <p>经过数十年的研究，科学家已经知道每个年龄段的健康 HRV 正常范围：</p>
+
+  <table>
+    <tr><th>Real age (实际年龄)</th><th>Normal HRV range (ms)</th><th>Autonomic age if below</th></tr>
+    <tr><td>20-29</td><td>50-60</td><td>→ 像 30+ 岁</td></tr>
+    <tr><td>30-39</td><td>42-50</td><td>→ 像 50+ 岁</td></tr>
+    <tr><td>40-49</td><td>35-42</td><td>→ 像 55+ 岁</td></tr>
+    <tr><td>50-59</td><td>25-35</td><td>→ 像 65+ 岁</td></tr>
+    <tr><td>60+</td><td>20-30</td><td>—</td></tr>
+  </table>
+
+  <p style="font-size:13px;color:var(--muted);margin-top:8px">* 数据来源：Shaffer & Ginsberg (2017), 7,182次引用。基于 RMSSD 短时程测量，健康人群。</p>
+</div>
+
+<h2>什么会让 Autonomic Age 变老？</h2>
+
+<div class="card">
+  <table>
+    <tr><td>😰 慢性压力</td><td>持续高压工作、长期焦虑</td></tr>
+    <tr><td>😴 睡眠不足</td><td>深度睡眠不够，HRV 无法恢复</td></tr>
+    <tr><td>🍺 饮酒</td><td>酒精抑制副交感神经（迷走神经）</td></tr>
+    <tr><td>🦠 慢性炎症</td><td>身体长期处于轻度发炎状态</td></tr>
+    <tr><td>🏃 久坐不动</td><td>缺乏运动会降低自主神经调节能力</td></tr>
+    <tr><td>💊 某些药物</td><td>部分药物会影响心率调节</td></tr>
+  </table>
+</div>
+
+<h2>怎么让它变年轻？</h2>
+
+<div class="card">
+  <div class="tip">
+    <strong>🥇 规律的有氧运动</strong><br>
+    每周3-5次，每次30分钟。慢跑、游泳、快走都可以。运动是最有效的"神经回春术"——坚持 8-12 周就能看到 HRV 明显提升。
+  </div>
+
+  <div class="tip">
+    <strong>🥈 深呼吸训练</strong><br>
+    每天 5 分钟，吸气 4 秒，呼气 6 秒。缓慢的呼气会刺激迷走神经（vagus nerve, 迷走神经），直接提高 HRV。
+  </div>
+
+  <div class="tip">
+    <strong>🥉 保证深度睡眠</strong><br>
+    HRV 主要在你深度睡眠时恢复。固定睡眠时间，睡前 1 小时不看屏幕。
+  </div>
+
+  <div class="tip">
+    <strong>🏅 减少酒精</strong><br>
+    哪怕一杯酒，也会让你的 HRV 在当晚明显下降。想监测这个效果？喝一杯酒，第二天看你的 Hidden Chain Score。
+  </div>
+
+  <div class="tip">
+    <strong>🌿 冷暴露</strong><br>
+    冷水洗脸、冷淋浴最后 30 秒——刺激迷走神经，短期内提升 HRV。
+  </div>
+</div>
+
+<h2>关于月经周期 (menstrual cycle, 月经周期)</h2>
+
+<div class="warn">
+  <strong>重要</strong>：女性在经前期 (premenstrual phase, 月经前几天) HRV 自然偏低。这不是状态不好，是激素撤退的正常生理反应。Hidden Chain Score 已经做了周期校准 (cycle calibration)，所以不会因为正常生理波动给你打低分。
+</div>
+
+<h2>这个数字能告诉我什么？</h2>
+
+<div class="card">
+  <ul style="padding-left:20px">
+    <li><strong>追踪趋势</strong>：一个月后 Autonomic Age 是上升还是下降了？</li>
+    <li><strong>评估干预效果</strong>：开始跑步 / 早睡 / 戒酒之后，有变化吗？</li>
+    <li><strong>预警信号</strong>：如果 Autonomic Age 突然比实际年龄老 15 岁以上，提示身体可能处于高压状态</li>
+    <li><strong>中医对照</strong>：Autonomic Age 偏高通常对应"气血不足 (qi-blood deficiency)"或"肝郁气滞 (liver qi stagnation)"</li>
+  </ul>
+</div>
+
+<h2>一天中什么时候测最好？</h2>
+
+<div class="highlight">
+  早上起床后，还没吃东西、没喝咖啡之前，静坐 1-2 分钟后测量。每天在同一时间测量，才能做趋势对比。
+</div>
+
+<div class="nav">
+  <a href="web_checkin.html">← Back to daily check-in</a> &nbsp;·&nbsp;
+  <a href="index.html">Home</a>
+</div>
+
+</body>
+</html>
