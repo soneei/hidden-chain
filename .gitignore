@@ -17,10 +17,13 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Data (personal health data - NEVER commit)
+# Data (personal health data + auto-generated DB - NEVER commit)
 data/*.csv
 data/*.json
-!data/.gitkeep
+data/*.db
+!data/daily_log_template.csv
+!data/web_checkin.html
+!data/README.md
 
 # Environment
 .env
