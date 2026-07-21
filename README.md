@@ -1,8 +1,8 @@
 # Hidden Chain
 
-**Wearable-to-TCM (Traditional Chinese Medicine) health scoring engine.**
+**可穿戴设备 → 月经周期校准 → 中医辨证评分。一个数字，一句话，看清自己。**
 
-A single daily number that tells you how your body is doing — built on peer-reviewed autonomic neuroscience, calibrated for the menstrual cycle (月经周期), and mapped to TCM diagnostics (中医辨证).
+Wearable-to-TCM (Traditional Chinese Medicine) health scoring engine. A single daily number built on peer-reviewed autonomic neuroscience, calibrated for the menstrual cycle (月经周期), and mapped to TCM diagnostics (中医辨证).
 
 ## What it does
 
