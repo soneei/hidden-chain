@@ -12,24 +12,25 @@ Every paper in this folder must meet **at least one** of the following:
 - Published in peer-reviewed journal (any tier, but not MDPI without IF verification)
 - Findings directly inform a specific algorithm module
 - Cannot be replaced by a higher-tier paper saying the same thing
-- Marked `[T2]` in filename
 
 ## Tier 3: Research note only
 - Interesting but not yet integrated into the algorithm
 - Awaiting verification or higher-tier replacement
-- Marked `[T3]` in filename
 
 ## Routine checks
-
 - Each paper must have a `Last verified` line with year
 - Papers > 5 years old without a verification update are flagged for review
-- Weekly review (automation) checks for freshness
 - When a higher-tier replacement is found, the old paper is archived (not deleted) and replaced
 
-## Current library (2026-07-21)
+## Current library (2026-07-22)
 
 | # | Paper | Tier | Verified |
 |---|---|---|---|
-| 001 | Holzman & Bridgett 2017 | Tier 1 | 2025 |
-| 002 | de Jager et al. 2025 | Tier 1 | 2026 |
-| 003 | Thayer & Lane 2009 | Tier 1 | Foundational |
+| 001 | Holzman & Bridgett 2017 — HRV self-regulation meta-analysis | Tier 1 | 2025 |
+| 002 | de Jager et al. 2025 — Wearable HRV menstrual cycle | Tier 1 | 2026 |
+| 003 | Thayer & Lane 2009 — Neurovisceral integration model | Tier 1 | Foundational |
+| 004 | Shaffer & Ginsberg 2017 — HRV norms by age | Tier 1 | 2025 |
+| 005 | de Jager 2025 + von Holzen 2016 — Female lifespan CVA | Tier 1+2 | 2026 |
+| 006 | Olivera-Toro 2019 — TCM pattern HRV quantification | Tier 2 | 2019 |
+| 007 | Cole 1999 (NEJM) — HRR mortality predictor | Tier 1 | 1999 |
+| 008 | Jarczok/Thayer 2019 — Disease risk thresholds | Tier 2 | 2019 |
