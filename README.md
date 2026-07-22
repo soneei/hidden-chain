@@ -86,6 +86,57 @@ Every line of our engine cites a specific paper. Not marketing. Not vibes.
 
 ---
 
+## 🎯 Why this exists
+
+There are two worlds that rarely talk to each other:
+
+**Western autonomic neuroscience** knows that HRV is a window into brain health. The neurovisceral integration model (Thayer & Lane, 1,788 citations) proved that your prefrontal cortex, amygdala, and vagus nerve form a continuous feedback loop — and HRV is its most accessible signal.
+
+**Traditional Chinese Medicine** has been diagnosing qi-blood deficiency (气血不足), liver qi stagnation (肝郁气滞), and spleen deficiency (脾虚) for 2,000 years. But no one has put a number on it.
+
+Hidden Chain bridges them. We don't replace TCM diagnosis — we give it a quantified signal from your wrist. The reason our algorithm matched the founder's in-person TCM diagnosis is not magic. It's because three independent research groups (Mexico, Taiwan, mainland China) all found the same thing: **TCM patterns produce measurable, reproducible HRV signatures.**
+
+## 🔍 How the engine works (technical)
+
+The score is a weighted composite of four sub-dimensions:
+
+```
+HCS = 0.30 × HRVbaseline  +  0.25 × Recovery  +  0.25 × TCMbalance  +  0.20 × PhaseAdj
+```
+
+**HRV baseline (0.30)** — Your RMSSD compared to the age-matched norm from Shaffer & Ginsberg 2017 (N=21,438). A 34-year-old with RMSSD 43ms scores neutral; RMSSD 55ms scores near-ceiling.
+
+**Recovery index (0.25)** — Based on Cole 1999 (NEJM): how fast your heart rate returns to baseline after stress. Fast recovery → high vagal tone.
+
+**TCM balance (0.25)** — Five-pattern syndrome differentiation scored from HRV features:
+- **气血不足**: Low resting RMSSD relative to age norm
+- **肝郁气滞**: Slow recovery + large HRV swings (NRICM 2010)
+- **脾虚**: SDNN-depressed profile, elevated LF/HF (Olivera-Toro 2019)
+- **痰气互结**: Abnormal HRV after removing cycle-phase effects
+- **阴阳平衡**: Composite wellness index from the above four
+
+**Phase adjustment (0.20)** — Cycle-phase offset. Luteal phase gets +0 (normal dip expected). Follicular gets +5 (higher baseline expected). This prevents false positives — a woman in her luteal phase is NOT "stressed"; she's physiologically normal.
+
+## 🧠 Autonomic Age: your body's real clock
+
+Your chronological age is on your ID. Your autonomic age is in your vagus nerve.
+
+The calculation: `estimate_autonomic_age(RMSSD)` → linear interpolation across the population HRV curve.
+
+| RMSSD | Autonomic Age | What it means |
+|---|---|---|
+| 55+ ms | ~20 | Elite — your nervous system is a decade younger than your body |
+| 45 ms | ~33 | Average for 30s |
+| 35 ms | ~46 | Premature autonomic aging — your body acts ~10 years older |
+| 25 ms | ~67 | Disease-risk threshold (Jarczok/Thayer 2019, N=9,550) |
+
+Autononomic Age adjusts for lifecycle stage:
+- **Postmenopausal women**: RMSSD divided by 0.85 — same RMSSD means a younger autonomic age (estrogen loss naturally lowers HRV)
+- **CHC users**: RMSSD + 3ms — hormonal contraceptives artificially suppress HRV (de Jager 2025)
+- **Perimenopausal**: RMSSD divided by 0.92
+
+---
+
 ## 🚀 Try it in 30 seconds
 
 ```bash
