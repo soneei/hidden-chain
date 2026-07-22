@@ -64,12 +64,12 @@
   <div class="field">
     <label>Mood tags (情绪标签)</label>
     <div style="display:flex;gap:4px;flex-wrap:wrap" id="moodTags">
-      <button type="button" class="day-btn" onclick="toggleTag(this,'anxious')">Anxious (焦虑)</button>
-      <button type="button" class="day-btn" onclick="toggleTag(this,'exhausted')">Exhausted (疲惫)</button>
-      <button type="button" class="day-btn" onclick="toggleTag(this,'energetic')">Energetic (精力充沛)</button>
-      <button type="button" class="day-btn" onclick="toggleTag(this,'calm')">Calm (平静)</button>
-      <button type="button" class="day-btn" onclick="toggleTag(this,'irritable')">Irritable (烦躁)</button>
-      <button type="button" class="day-btn" onclick="toggleTag(this,'brain_fog')">Brain fog (脑雾)</button>
+      <button type="button" class="day-btn" data-tag="anxious" onclick="toggleTag(this)">Anxious (焦虑)</button>
+      <button type="button" class="day-btn" data-tag="exhausted" onclick="toggleTag(this)">Exhausted (疲惫)</button>
+      <button type="button" class="day-btn" data-tag="energetic" onclick="toggleTag(this)">Energetic (精力充沛)</button>
+      <button type="button" class="day-btn" data-tag="calm" onclick="toggleTag(this)">Calm (平静)</button>
+      <button type="button" class="day-btn" data-tag="irritable" onclick="toggleTag(this)">Irritable (烦躁)</button>
+      <button type="button" class="day-btn" data-tag="brain_fog" onclick="toggleTag(this)">Brain fog (脑雾)</button>
     </div>
     <input type="hidden" id="moodTagsVal" value="">
   </div>
@@ -117,46 +117,44 @@
 </div>
 
 <script>
-// ── Phase calculator from calendar ──
-function toggleTag(btn, tag) {
-  btn.classList.toggle('active');
-  const tags = [...document.querySelectorAll('#moodTags .day-btn.active')].map(b => b.textContent.match(/\([^)]+\)|[A-Z][a-z_]+/)?.[0]?.replace(/[()]/g,'') || b.dataset.tag || '');
-  document.getElementById('moodTagsVal').value = [...document.querySelectorAll('#moodTags .day-btn.active')].map(b => {
-    const t = b.textContent.split(' ')[0].toLowerCase();
-    return t;
-  }).join(',');
-}
+// ── Phase calculator ──
 function calcCycleDay() {
   const d = document.getElementById('periodStart').value;
   const len = parseInt(document.getElementById('cycleLength').value) || 28;
   if (!d) return null;
   const start = new Date(d + 'T00:00:00');
   const today = new Date(); today.setHours(0,0,0,0);
-  const diff = Math.floor((today - start) / (1000*60*60*24)) + 1; // day 1 = start date
+  const diff = Math.floor((today - start) / (1000*60*60*24)) + 1;
   if (diff < 1) return null;
-  // If diff exceeds cycle length, treat as extended luteal / pre-menstrual (use modular day or fall back to luteal phase)
-  const effectiveDay = diff > len ? Math.min(diff, 35) : diff;
+  const day = diff > len ? Math.min(diff, 35) : diff;
   let phase, expected;
-  if (effectiveDay <= 5) { phase='Menstrual (月经期)'; expected='lower HRV (正常偏低)'; }
-  else if (effectiveDay <= 14) { phase='Follicular (卵泡期)'; expected='higher HRV (正常偏高)'; }
-  else if (effectiveDay <= 17) { phase='Ovulatory (排卵期)'; expected='peak HRV (峰值)'; }
-  else if (effectiveDay <= 24) { phase='Luteal (黄体期)'; expected='moderate HRV (中等)'; }
-  else { phase='Premenstrual (经前期)'; expected='lower HRV (正常偏低)'; }
-  return { day: effectiveDay, length: len, phase, expected, extended: diff > len };
+  if (day <= 5) { phase = 'Menstrual (月经期)'; expected = 'lower HRV (正常偏低)'; }
+  else if (day <= 14) { phase = 'Follicular (卵泡期)'; expected = 'higher HRV (正常偏高)'; }
+  else if (day <= 17) { phase = 'Ovulatory (排卵期)'; expected = 'peak HRV (峰值)'; }
+  else if (day <= 24) { phase = 'Luteal (黄体期)'; expected = 'moderate HRV (中等)'; }
+  else { phase = 'Premenstrual (经前期)'; expected = 'lower HRV (正常偏低)'; }
+  return { day, length: len, phase, expected, extended: diff > len };
 }
 
 function updatePhaseHint() {
   const c = calcCycleDay();
   const hint = document.getElementById('phaseHint');
   if (!c) { hint.textContent = 'Select a start date to see your current phase and cycle day.'; return; }
-  const ext = c.extended ? ` <em>(day ${c.day} exceeds your ${c.length}-day cycle — possible extended cycle or pregnancy)</em>` : '';
-  hint.innerHTML = `Today is <strong>Day ${c.day}</strong> of ${c.length} — <strong>${c.phase}</strong> (this phase typically has ${c.expected}).${ext}`;
+  const ext = c.extended ? ' <em>(day ' + c.day + ' exceeds your ' + c.length + '-day cycle — possible extended cycle or pregnancy)</em>' : '';
+  hint.innerHTML = 'Today is <strong>Day ' + c.day + '</strong> of ' + c.length + ' — <strong>' + c.phase + '</strong> (this phase typically has ' + c.expected + ').' + ext;
 }
 
 document.getElementById('periodStart').addEventListener('change', () => { updatePhaseHint(); document.getElementById('periodStart').blur(); });
 document.getElementById('cycleLength').addEventListener('change', updatePhaseHint);
 
-// ── IndexedDB — persistent storage ──
+// ── Mood tag toggle ──
+function toggleTag(btn) {
+  btn.classList.toggle('active');
+  const selected = [...document.querySelectorAll('#moodTags .day-btn.active')].map(b => b.getAttribute('data-tag')).filter(Boolean);
+  document.getElementById('moodTagsVal').value = selected.join(',');
+}
+
+// ── IndexedDB ──
 const DB = 'hcdb', ST = 'logs';
 let db;
 function idb() {
@@ -174,86 +172,21 @@ function importData(ev) { const f = ev.target.files[0]; if(!f) return; const r =
 
 async function renderHistory() {
   const data = await all();
-  document.getElementById('storageInfo').textContent = `${data.length} days recorded`;
+  document.getElementById('storageInfo').textContent = data.length + ' days recorded';
   if(!data.length) return;
   document.getElementById('historyCard').style.display = 'block';
   const rows = data.slice(-7).reverse().map(e => {
     const p = e.cycle_day <= 5 ? 'M' : e.cycle_day <= 14 ? 'F' : e.cycle_day <= 17 ? 'O' : e.cycle_day <= 24 ? 'L' : 'PM';
     const c = e.score>=80?'#7c3aed':e.score>=60?'#16a34a':e.score>=30?'#ca8a04':'#dc2626';
-    return `<tr class="history-row"><td>${e.date}</td><td style="color:#888">${p}</td><td style="font-weight:600;color:${c};text-align:right">${e.score||'-'}</td></tr>`;
+    return '<tr class="history-row"><td>' + e.date + '</td><td style="color:#888">' + p + '</td><td style="font-weight:600;color:' + c + ';text-align:right">' + (e.score||'-') + '</td></tr>';
   }).join('');
-  document.getElementById('historyTable').innerHTML = '<table style="width:100%;border-collapse:collapse">'+rows+'</table>';
-}
-
-// ── Cycle day calculator (calendar-based, updated on date change) ──
-
-// ── Submission ──
-function submitCheckin() {
-  const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
-  const cyc = calcCycleDay();
-  if (!h || !r) { btn.disabled=false; btn.textContent='Submit → Get Score'; showInlineError('Please fill in HRV and Resting Heart Rate.'); return; }
-  if (!cyc) { btn.disabled=false; btn.textContent='Submit → Get Score'; showInlineError('Pick a date for your last period start.'); return; }
-  const c = cyc.day;
-  const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, mood_tags:document.getElementById('moodTagsVal').value, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
-  const pk = parseInt(document.getElementById('peakHR').value), r1 = parseInt(document.getElementById('hrr1').value);
-  if (pk && r1) { p.hrr_peak = pk; p.hrr_1min = r1; }
-  const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
-
-  fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
-    .then(r => r.ok?r.json():Promise.reject())
-      .then(r => { if(r.error){alert(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
-    .catch(() => {
-            const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
-      const aa = estAutonomicAge(h);
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, hrr:hrr, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text, risk_alert:aa.age <= 30 ? "green" : aa.age <= 45 ? "yellow" : "red"});
-      renderHistory(); renderChart();
-    })
-    .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
-}
-
-function computePreview(h,r,c) {
-  let p, a; if(c<=5){p='menstrual';a=-3}else if(c<=14){p='follicular';a=5}else if(c<=17){p='ovulatory';a=3}else if(c<=24){p='luteal';a=0}else{p='premenstrual';a=-5}
-  let s = Math.min(100,Math.max(20,((h-20)/40)*80+20));
-  let sc = Math.round(s*.3+60*.25+78*.25+(50+a)*.2); sc=Math.max(0,Math.min(100,sc));
-  let l,tw; if(sc>=80){l='Purple — Peak';tw='Qi and blood are full. A day for challenge and creation.'}else if(sc>=60){l='Green — Good';tw='Steady rhythm, maintain your pace.'}else if(sc>=30){l='Yellow — Caution';tw='Liver qi mildly stagnant. Breathe, walk.'}else{l='Red — Rest';tw='Vital energy low. Rest. Early sleep + warm soak.'}
-  return {score:sc,level:l,takeaway:tw,phase:p,hrvScore:s,phaseAdj:a};
-}
-
-function showResult(r) {
-  all().then(h => {
-    let dt = ''; if(h.length>=2){ const pv=h[h.length-2]; const df=r.score-(pv.score||0); if(df>5)dt=`<span style="color:var(--green)">+${df} vs last check-in (${pv.score})</span><br>`; else if(df<-5)dt=`<span style="color:var(--red)">${df} vs last check-in (${pv.score})</span><br>`; else if(pv.score)dt=`<span style="color:var(--muted)">~ vs last check-in (${pv.score})</span><br>`; }
-    const cm = {purple:'score-purple',green:'score-green',yellow:'score-yellow',red:'score-red'};
-    document.getElementById('scoreCircle').textContent=r.score; document.getElementById('scoreCircle').className='score-circle '+(cm[r.level]||'score-green');
-    document.getElementById('scoreLabel').textContent=r.label||(r.level+' — Good');
-    document.getElementById('takeaway').textContent=r.takeaway;
-    const s=r.sub_scores||{}, t=r.tcm||{};
-    let html = dt+'<br><strong>Phase:</strong> '+r.phase+'<br>';
-    if (r.autonomic_age) {
-      const aa = r.autonomic_age; const ad = r.autonomic_age_delta;
-      const ac = ad ? (ad <= -5 ? 'var(--green)' : ad <= 2 ? 'var(--accent)' : ad <= 8 ? 'var(--yellow)' : 'var(--red)') : 'var(--accent)';
-      const as = ad !== undefined && ad !== null ? ((ad > 0 ? '+' + ad : ad) + ' yrs') : '';
-      html += '<strong>Autonomic Age (自主神经年龄):</strong> <span style="font-weight:700;color:'+ac+'">'+aa+' yrs</span> '+as+'<br>';
-      if (r.autonomic_age_text) html += '<span style="font-size:11px;color:var(--muted)">'+r.autonomic_age_text+'</span><br>';
-    }
-    html += '    if (r.hrr) {
-      const hrr = r.hrr; const hc = hrr >= 26 ? 'var(--green)' : hrr >= 18 ? 'var(--accent)' : hrr >= 13 ? 'var(--yellow)' : 'var(--red)';
-      html += '<strong>Exercise Recovery (HRR-1):</strong> <span style="font-weight:700;color:'+hc+'">'+hrr+' bpm</span> ';
-      html += (hrr>=26?'(Excellent)':hrr>=18?'(Normal)':hrr>=13?'(Below avg)':'<span style=color:var(--red)>(Impaired - Cole 1999)</span>')+'<br>';
-    }
-
-    html += '<strong>HRV baseline:</strong> '+s.hrv_baseline+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.hrv_baseline+'%"></span></span><br>'+'<strong>Recovery:</strong> '+s.recovery+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.recovery+'%"></span></span><br>'+'<strong>TCM balance:</strong> '+s.tcm_balance+'/100<br>'+'<hr style="border:none;border-top:1px solid #eee;margin:10px 0">'+'<strong>Qi-blood def.</strong> ('+'\u6c14\u8840\u4e0d\u8db3'+'): '+t.qi_blood+'/100 | '+'<strong>Liver stasis</strong> ('+'\u809d\u90c1\u6c14\u6e10'+'): '+t.liver_depression+'/100 | '+'<strong>Spleen def.</strong> ('+'\u813e\u865a'+'): '+t.spleen_deficiency+'/100';
-    if(r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
-    document.getElementById('detail').innerHTML=html;
-    document.getElementById('result').classList.add('show');
-  });
+  document.getElementById('historyTable').innerHTML = '<table style="width:100%;border-collapse:collapse">' + rows + '</table>';
 }
 
 async function renderChart() {
   const data = await all();
   if (data.length < 2) return;
-  const card = document.getElementById('chartCard');
-  card.style.display = 'block';
-
+  document.getElementById('chartCard').style.display = 'block';
   const last14 = data.slice(-14);
   const max = Math.max(...last14.map(d => d.score || 0), 80);
   const min = Math.min(...last14.map(d => d.score || 0), 20);
@@ -261,40 +194,19 @@ async function renderChart() {
   const w = 440, h = 160, pad = {l:40, r:10, t:10, b:30};
   const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
   const stepX = last14.length > 1 ? pw / (last14.length - 1) : pw;
-
-  // grid lines
   let grid = '';
   for (let s = 0; s <= 100; s += 20) {
     const y = pad.t + ph - ((s - min) / range) * ph;
     if (y < pad.t || y > h - pad.b) continue;
     const ys = Math.max(pad.t, Math.min(h - pad.b, y));
-    grid += `<line x1="${pad.l}" y1="${ys}" x2="${w-pad.r}" y2="${ys}" stroke="#eee" stroke-width="0.5"/>`;
-    grid += `<text x="${pad.l-4}" y="${ys+4}" font-size="9" fill="#888" text-anchor="end">${s}</text>`;
+    grid += '<line x1="' + pad.l + '" y1="' + ys + '" x2="' + (w-pad.r) + '" y2="' + ys + '" stroke="#eee" stroke-width="0.5"/>';
+    grid += '<text x="' + (pad.l-4) + '" y="' + (ys+4) + '" font-size="9" fill="#888" text-anchor="end">' + s + '</text>';
   }
-
-  // line path
   let path = '';
-  last14.forEach((d, i) => {
-    const x = pad.l + i * stepX;
-    const y = pad.t + ph - ((d.score - min) / range) * ph;
-    path += `${i===0?'M':'L'}${x.toFixed(1)},${y.toFixed(1)} `;
-  });
-
-  // dots + dates
+  last14.forEach((d, i) => { const x = pad.l + i * stepX; const y = pad.t + ph - ((d.score - min) / range) * ph; path += (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' '; });
   let dots = '';
-  last14.forEach((d, i) => {
-    if (!d.score) return;
-    const x = pad.l + i * stepX;
-    const y = pad.t + ph - ((d.score - min) / range) * ph;
-    const c = d.score >= 80 ? '#7c3aed' : d.score >= 60 ? '#16a34a' : d.score >= 30 ? '#ca8a04' : '#dc2626';
-    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${c}"/>`;
-    if (last14.length <= 10 || i % 2 === 0) {
-      dots += `<text x="${x.toFixed(1)}" y="${h-8}" font-size="8" fill="#888" text-anchor="middle">${d.date.slice(5)}</text>`;
-    }
-  });
-
-  document.getElementById('scoreChart').innerHTML = grid +
-    `<path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` + dots;
+  last14.forEach((d, i) => { if (!d.score) return; const x = pad.l + i * stepX; const y = pad.t + ph - ((d.score - min) / range) * ph; const c = d.score >= 80 ? '#7c3aed' : d.score >= 60 ? '#16a34a' : d.score >= 30 ? '#ca8a04' : '#dc2626'; dots += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3" fill="' + c + '"/>'; if (last14.length <= 10 || i % 2 === 0) dots += '<text x="' + x.toFixed(1) + '" y="' + (h-8) + '" font-size="8" fill="#888" text-anchor="middle">' + d.date.slice(5) + '</text>'; });
+  document.getElementById('scoreChart').innerHTML = grid + '<path d="' + path + '" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + dots;
 }
 
 function downloadReport() {
@@ -306,23 +218,21 @@ function downloadReport() {
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '-';
     const first = scores[0], last = scores[scores.length-1];
     const trend = last > first+5 ? '↑ Improving' : last < first-5 ? '↓ Declining' : '→ Stable';
-
     let text = '=== Hidden Chain Health Report ===\n';
-    text += `Generated: ${new Date().toISOString().slice(0,10)}\n`;
-    text += `Days tracked: ${data.length}\n`;
-    text += `Latest score: ${latest.score}/100\n`;
-    text += `7-day avg: ${avg}\n`;
-    text += `Week trend: ${trend}\n\n`;
+    text += 'Generated: ' + new Date().toISOString().slice(0,10) + '\n';
+    text += 'Days tracked: ' + data.length + '\n';
+    text += 'Latest score: ' + (latest.score || '-') + '/100\n';
+    text += '7-day avg: ' + avg + '\n';
+    text += 'Week trend: ' + trend + '\n\n';
     text += '--- Daily History ---\n';
     recent.reverse().forEach(d => {
       const p = d.cycle_day <= 5 ? 'Menstrual' : d.cycle_day <= 14 ? 'Follicular' : d.cycle_day <= 17 ? 'Ovulatory' : d.cycle_day <= 24 ? 'Luteal' : 'Premenstrual';
-      text += `${d.date} | Day ${d.cycle_day} (${p}) | HRV ${d.hrv_rmssd}ms | RHR ${d.resting_hr}bpm | Score ${d.score}\n`;
+      text += d.date + ' | Day ' + d.cycle_day + ' (' + p + ') | HRV ' + d.hrv_rmssd + 'ms | RHR ' + d.resting_hr + 'bpm | Score ' + d.score + '\n';
     });
-
     const blob = new Blob([text], {type:'text/plain'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `hidden_chain_report_${new Date().toISOString().slice(0,10)}.txt`;
+    a.href = url; a.download = 'hidden_chain_report_' + new Date().toISOString().slice(0,10) + '.txt';
     a.click(); URL.revokeObjectURL(url);
   });
 }
@@ -340,17 +250,93 @@ function estAutonomicAge(rmssd) {
       }
     }
   }
-  let text = `Estimated autonomic age: ${est} yrs.`;
-  return {age: est, delta: null, text};
+  return {age: est, text: 'Estimated autonomic age: ' + est + ' yrs.'};
 }
-
 
 function showInlineError(msg) {
   let el = document.getElementById('inlineError');
-  if (!el) { el = document.createElement('div'); el.id='inlineError'; el.style.cssText='background:#fce4ec;color:#c62828;padding:10px;border-radius:8px;margin-top:10px;font-size:13px;text-align:center;font-weight:500'; document.querySelector('.btn').parentNode.appendChild(el); }
-  el.textContent = msg; el.style.display = 'block';
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'inlineError';
+    el.style.cssText = 'background:#fce4ec;color:#c62828;padding:10px;border-radius:8px;margin-top:10px;font-size:13px;text-align:center;font-weight:500';
+    document.querySelector('.btn').parentNode.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
   setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
+
+function submitCheckin() {
+  const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
+  const cyc = calcCycleDay();
+  if (!h || !r) { showInlineError('Please fill in HRV and Resting Heart Rate.'); return; }
+  if (!cyc) { showInlineError('Pick a date for your last period start.'); return; }
+  const c = cyc.day;
+  const m = parseInt(document.getElementById('mood').value) || null;
+  const sl = parseFloat(document.getElementById('sleep').value) || null;
+  const tags = document.getElementById('moodTagsVal').value;
+  const pk = parseInt(document.getElementById('peakHR').value), r1 = parseInt(document.getElementById('hrr1').value);
+  const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:m, mood_tags:tags, sleep_hours:sl, date:new Date().toISOString().slice(0,10) };
+  if (pk && r1) { p.hrr_peak = pk; p.hrr_1min = r1; }
+  const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
+
+  fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
+    .then(r => r.ok?r.json():Promise.reject())
+    .then(r => { if(r.error){showInlineError(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
+    .catch(() => {
+      const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
+      save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
+      renderHistory(); renderChart();
+    })
+    .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
+}
+
+function computePreview(h,r,c) {
+  let p, a; if(c<=5){p='menstrual';a=-3}else if(c<=14){p='follicular';a=5}else if(c<=17){p='ovulatory';a=3}else if(c<=24){p='luteal';a=0}else{p='premenstrual';a=-5}
+  let s = Math.min(100,Math.max(20,((h-20)/40)*80+20));
+  let sc = Math.round(s*.3+60*.25+78*.25+(50+a)*.2); sc=Math.max(0,Math.min(100,sc));
+  let l,tw; if(sc>=80){l='Purple — Peak';tw='Qi and blood are full. A day for challenge and creation.'}else if(sc>=60){l='Green — Good';tw='Steady rhythm, maintain your pace.'}else if(sc>=30){l='Yellow — Caution';tw='Liver qi mildly stagnant. Breathe, walk.'}else{l='Red — Rest';tw='Vital energy low. Rest. Early sleep + warm soak.'}
+  return {score:sc,level:l,takeaway:tw,phase:p,hrvScore:s,phaseAdj:a};
+}
+
+function showResult(r) {
+  all().then(h => {
+    let dt = ''; if(h.length>=2){ const pv=h[h.length-2]; const df=r.score-(pv.score||0); if(df>5)dt='<span style="color:var(--green)">+'+df+' vs last check-in ('+pv.score+')</span><br>'; else if(df<-5)dt='<span style="color:var(--red)">'+df+' vs last check-in ('+pv.score+')</span><br>'; else if(pv.score)dt='<span style="color:var(--muted)">~ vs last check-in ('+pv.score+')</span><br>'; }
+    const cm = {purple:'score-purple',green:'score-green',yellow:'score-yellow',red:'score-red'};
+    document.getElementById('scoreCircle').textContent=r.score; document.getElementById('scoreCircle').className='score-circle '+(cm[r.level]||'score-green');
+    document.getElementById('scoreLabel').textContent=r.label||(r.level+' — Good');
+    document.getElementById('takeaway').textContent=r.takeaway;
+    const s=r.sub_scores||{}, t=r.tcm||{};
+    let html = dt + '<br><strong>Phase:</strong> ' + r.phase + '<br>';
+    if (r.autonomic_age) {
+      const aa = r.autonomic_age; const ad = r.autonomic_age_delta;
+      const ac = ad !== null && ad !== undefined ? (ad <= -5 ? 'var(--green)' : ad <= 2 ? 'var(--accent)' : ad <= 8 ? 'var(--yellow)' : 'var(--red)') : 'var(--accent)';
+      const as = ad !== null && ad !== undefined ? ((ad > 0 ? '+' + ad : ad) + ' yrs') : '';
+      html += '<strong>Autonomic Age (自主神经年龄):</strong> <span style="font-weight:700;color:' + ac + '">' + aa + ' yrs</span> ' + as + '<br>';
+      if (r.autonomic_age_text) html += '<span style="font-size:11px;color:var(--muted)">' + r.autonomic_age_text + '</span><br>';
+    }
+    if (r.risk_alert) {
+      const rc = r.risk_alert === 'red' ? 'var(--red)' : r.risk_alert === 'yellow' ? 'var(--yellow)' : 'var(--green)';
+      html += '<strong>Disease Risk:</strong> <span style="font-weight:700;color:' + rc + '">' + r.risk_alert.toUpperCase() + '</span><br>';
+      if (r.risk_alert_text) html += '<span style="font-size:11px;color:var(--muted)">' + r.risk_alert_text + '</span><br>';
+    }
+    if (r.hrr) {
+      const hrr = r.hrr; const hc = hrr >= 26 ? 'var(--green)' : hrr >= 18 ? 'var(--accent)' : hrr >= 13 ? 'var(--yellow)' : 'var(--red)';
+      let hrrLabel = hrr >= 26 ? '(Excellent)' : hrr >= 18 ? '(Normal)' : hrr >= 13 ? '(Below avg)' : '<span style="color:var(--red)">(Impaired - Cole 1999)</span>';
+      html += '<strong>Exercise Recovery (HRR-1):</strong> <span style="font-weight:700;color:' + hc + '">' + hrr + ' bpm</span> ' + hrrLabel + '<br>';
+    }
+    html += '<strong>HRV baseline:</strong> ' + s.hrv_baseline + '/100 <span class="bar-bg"><span class="bar-fill" style="width:' + s.hrv_baseline + '%"></span></span><br>';
+    html += '<strong>Recovery:</strong> ' + s.recovery + '/100 <span class="bar-bg"><span class="bar-fill" style="width:' + s.recovery + '%"></span></span><br>';
+    html += '<strong>TCM balance:</strong> ' + s.tcm_balance + '/100<br>';
+    html += '<hr style="border:none;border-top:1px solid #eee;margin:10px 0">';
+    html += '<strong>Qi-blood def.</strong> (气血不足): ' + t.qi_blood + '/100 | <strong>Liver stasis</strong> (肝郁气滞): ' + t.liver_depression + '/100 | <strong>Spleen def.</strong> (脾虚): ' + t.spleen_deficiency + '/100';
+    if (r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
+    document.getElementById('detail').innerHTML = html;
+    document.getElementById('result').classList.add('show');
+  });
+}
+
 // ── Init ──
 idb().then(() => { renderHistory(); renderChart(); });
 const savedStart = localStorage.getItem('hc_periodStart');
@@ -358,7 +344,6 @@ const savedLen = localStorage.getItem('hc_cycleLength');
 if (savedStart) document.getElementById('periodStart').value = savedStart;
 if (savedLen) document.getElementById('cycleLength').value = savedLen;
 if (savedStart) updatePhaseHint();
-
 function savePeriodToLocal() {
   localStorage.setItem('hc_periodStart', document.getElementById('periodStart').value);
   localStorage.setItem('hc_cycleLength', document.getElementById('cycleLength').value);
