@@ -161,6 +161,26 @@ AGE_NORMS = [
 ]
 
 
+# ─────────────────────────────────────────────
+# Lifecycle calibration — based on de Jager 2025 + von Holzen 2016
+# ─────────────────────────────────────────────
+
+def adjust_for_lifecycle(rmssd: float, age: int, stage: str = "reproductive") -> float:
+    """Adjust expected RMSSD based on reproductive lifecycle stage.
+
+    Postmenopausal women naturally have 5-10 years "older" HRV due to estrogen loss.
+    CHC users have suppressed HRV, especially in late cycle.
+    Returns adjusted RMSSD for baseline comparison.
+    """
+    if stage == "postmenopausal":
+        return rmssd / 0.85  # naturally lower → scale up for fair comparison
+    elif stage == "perimenopausal":
+        return rmssd / 0.92
+    elif stage == "chc_user":
+        return rmssd + 3  # CHC suppresses RMSSD by ~3ms on average
+    return rmssd
+
+
 def estimate_autonomic_age(rmssd: float, real_age: int | None = None) -> dict:
     """Estimate autonomic age from RMSSD (resting, short-term measurement).
 
@@ -273,12 +293,15 @@ class HiddenChainScorer:
         phlegm_turbidity: float,
         yin_yang_balance: float,
         phase: CyclePhase,
+        lifecycle_stage: str = "reproductive",
     ) -> HiddenChainScore:
         """
         计算隐链评分。
 
         公式：
           HCS = HRV基线(0.30) + 恢复指数(0.25) + 中医平衡(0.25) + 周期调节(0.20)
+
+        lifecycle_stage: "reproductive" | "perimenopausal" | "postmenopausal" | "chc_user"
         """
 
         # —— 子维度 1：HRV 基线 (0-100) ——
@@ -322,6 +345,10 @@ class HiddenChainScorer:
         else:
             level = ScoreLevel.RED
 
+        # 自主神经年龄 (v0.3) — lifecycle-adjusted
+        adjusted_rmssd = adjust_for_lifecycle(resting_rmssd, 35, lifecycle_stage)
+        aa = estimate_autonomic_age(adjusted_rmssd)
+
         return HiddenChainScore(
             score=score,
             level=level,
@@ -333,11 +360,12 @@ class HiddenChainScorer:
             qi_blood=qi_blood,
             liver_depression=liver_depression,
             spleen_deficiency=spleen_deficiency,
-            autonomic_age=estimate_autonomic_age(resting_rmssd)["estimated_age"],
-            autonomic_age_delta=estimate_autonomic_age(resting_rmssd)["delta"],
-            autonomic_age_text=estimate_autonomic_age(resting_rmssd)["interpretation"],
+            autonomic_age=aa["estimated_age"],
+            autonomic_age_delta=aa["delta"],
+            autonomic_age_text=aa["interpretation"],
             risk_alert=compute_risk_alert(resting_rmssd)["level"],
             risk_alert_text=compute_risk_alert(resting_rmssd)["text"],
+            lifecycle_stage=lifecycle_stage,
         )
 
 
