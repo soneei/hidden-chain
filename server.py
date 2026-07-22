@@ -171,6 +171,9 @@ def checkin():
             "liver_depression": round(hcs.liver_depression, 1),
             "spleen_deficiency": round(hcs.spleen_deficiency, 1),
         },
+        "autonomic_age": hcs.autonomic_age,
+        "autonomic_age_delta": hcs.autonomic_age_delta,
+        "autonomic_age_text": hcs.autonomic_age_text,
         "trend": {
             "week_avg": round(trend.week_avg, 1),
             "month_avg": round(trend.month_avg, 1),

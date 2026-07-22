@@ -172,7 +172,8 @@ function submitCheckin() {
       .then(r => { if(r.error){alert(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
     .catch(() => {
       const sc = computePreview(h,r,c); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true});
+      const aa = estAutonomicAge(h);
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text});
       renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
@@ -194,7 +195,15 @@ function showResult(r) {
     document.getElementById('scoreLabel').textContent=r.label||(r.level+' — Good');
     document.getElementById('takeaway').textContent=r.takeaway;
     const s=r.sub_scores||{}, t=r.tcm||{};
-    let html = dt+'<br><strong>Phase:</strong> '+r.phase+'<br>'+'<strong>HRV baseline:</strong> '+s.hrv_baseline+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.hrv_baseline+'%"></span></span><br>'+'<strong>Recovery:</strong> '+s.recovery+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.recovery+'%"></span></span><br>'+'<strong>TCM balance:</strong> '+s.tcm_balance+'/100<br>'+'<hr style="border:none;border-top:1px solid #eee;margin:10px 0">'+'<strong>Qi-blood def.</strong> ('+'\u6c14\u8840\u4e0d\u8db3'+'): '+t.qi_blood+'/100 | '+'<strong>Liver stasis</strong> ('+'\u809d\u90c1\u6c14\u6e10'+'): '+t.liver_depression+'/100 | '+'<strong>Spleen def.</strong> ('+'\u813e\u865a'+'): '+t.spleen_deficiency+'/100';
+    let html = dt+'<br><strong>Phase:</strong> '+r.phase+'<br>';
+    if (r.autonomic_age) {
+      const aa = r.autonomic_age; const ad = r.autonomic_age_delta;
+      const ac = ad ? (ad <= -5 ? 'var(--green)' : ad <= 2 ? 'var(--accent)' : ad <= 8 ? 'var(--yellow)' : 'var(--red)') : 'var(--accent)';
+      const as = ad !== undefined && ad !== null ? ((ad > 0 ? '+' + ad : ad) + ' yrs') : '';
+      html += '<strong>Autonomic Age (自主神经年龄):</strong> <span style="font-weight:700;color:'+ac+'">'+aa+' yrs</span> '+as+'<br>';
+      if (r.autonomic_age_text) html += '<span style="font-size:11px;color:var(--muted)">'+r.autonomic_age_text+'</span><br>';
+    }
+    html += '<strong>HRV baseline:</strong> '+s.hrv_baseline+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.hrv_baseline+'%"></span></span><br>'+'<strong>Recovery:</strong> '+s.recovery+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.recovery+'%"></span></span><br>'+'<strong>TCM balance:</strong> '+s.tcm_balance+'/100<br>'+'<hr style="border:none;border-top:1px solid #eee;margin:10px 0">'+'<strong>Qi-blood def.</strong> ('+'\u6c14\u8840\u4e0d\u8db3'+'): '+t.qi_blood+'/100 | '+'<strong>Liver stasis</strong> ('+'\u809d\u90c1\u6c14\u6e10'+'): '+t.liver_depression+'/100 | '+'<strong>Spleen def.</strong> ('+'\u813e\u865a'+'): '+t.spleen_deficiency+'/100';
     if(r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
     document.getElementById('detail').innerHTML=html;
     document.getElementById('result').classList.add('show');
@@ -278,6 +287,23 @@ function downloadReport() {
     a.href = url; a.download = `hidden_chain_report_${new Date().toISOString().slice(0,10)}.txt`;
     a.click(); URL.revokeObjectURL(url);
   });
+}
+
+function estAutonomicAge(rmssd) {
+  const norms = [[20,55],[30,48],[40,40],[50,32],[60,28],[70,24]];
+  let est = 40;
+  if (rmssd >= norms[0][1]) est = Math.max(16, norms[0][0] - (rmssd - norms[0][1]) / 1.5);
+  else if (rmssd <= norms[norms.length-1][1]) est = Math.min(90, norms[norms.length-1][0] + (norms[norms.length-1][1] - rmssd) / 0.5);
+  else {
+    for (let i=0; i<norms.length-1; i++) {
+      if (norms[i+1][1] <= rmssd && rmssd <= norms[i][1]) {
+        est = Math.round(norms[i][0] + (norms[i][1]-rmssd)/(norms[i][1]-norms[i+1][1])*(norms[i+1][0]-norms[i][0]));
+        break;
+      }
+    }
+  }
+  let text = `Estimated autonomic age: ${est} yrs.`;
+  return {age: est, delta: null, text};
 }
 
 // ── Init ──

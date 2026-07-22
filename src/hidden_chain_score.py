@@ -88,6 +88,11 @@ class HiddenChainScore:
     liver_depression: float
     spleen_deficiency: float
 
+    # Autonomic Age (自主神经年龄, v0.3)
+    autonomic_age: int | None = None
+    autonomic_age_delta: int | None = None
+    autonomic_age_text: str = ""
+
     def one_liner(self) -> str:
         """一句话结论"""
         return self.level.advice
@@ -103,6 +108,8 @@ class HiddenChainScore:
             f"",
             f"──────────────────────────────",
             f"Cycle phase: {phase_en}",
+            f"Autonomic Age: {self.autonomic_age} yrs" + (f" (real age: {self.autonomic_age_delta:+d} yrs)" if self.autonomic_age_delta is not None else ""),
+            f"──────────────────────────────",
             f"Sub-scores:",
             f"  HRV baseline  {self.hrv_baseline:>3}/100  {'#' * (self.hrv_baseline // 10)}",
             f"  Recovery      {self.recovery_index:>3}/100  {'#' * (self.recovery_index // 10)}",
@@ -128,6 +135,66 @@ class HiddenChainScore:
         if self.spleen_deficiency > 60:
             issues.append(f"Spleen deficiency ({self.spleen_deficiency:.0f}/100)")
         return " / ".join(issues) if issues else None
+
+
+# ─────────────────────────────────────────────
+# Autonomic Age (自主神经年龄) — based on Shaffer & Ginsberg 2017
+# ─────────────────────────────────────────────
+
+# Reference table: expected RMSSD by age decade
+# Source: Shaffer & Ginsberg (2017), Nunan et al. (2010) N=21,438
+AGE_NORMS = [
+    (20, 55),  # age 20 → expected RMSSD ~55ms
+    (30, 48),  # age 30 → expected RMSSD ~48ms
+    (40, 40),  # age 40 → expected RMSSD ~40ms
+    (50, 32),  # age 50 → expected RMSSD ~32ms
+    (60, 28),  # age 60 → expected RMSSD ~28ms
+    (70, 24),  # age 70 → expected RMSSD ~24ms
+]
+
+
+def estimate_autonomic_age(rmssd: float, real_age: int | None = None) -> dict:
+    """Estimate autonomic age from RMSSD (resting, short-term measurement).
+
+    Returns a dict with:
+      - estimated_age: what age your HRV corresponds to
+      - delta: difference from real age (negative = younger, positive = older)
+      - interpretation: plain-language summary
+    """
+    if rmssd <= 0:
+        return {"estimated_age": None, "delta": None, "interpretation": "No data."}
+
+    # Linear interpolation across age norms
+    if rmssd >= AGE_NORMS[0][1]:
+        est = max(16, int(AGE_NORMS[0][0] - (rmssd - AGE_NORMS[0][1]) / 1.5))
+    elif rmssd <= AGE_NORMS[-1][1]:
+        est = min(90, int(AGE_NORMS[-1][0] + (AGE_NORMS[-1][1] - rmssd) / 0.5))
+    else:
+        for i in range(len(AGE_NORMS) - 1):
+            a1, r1 = AGE_NORMS[i]
+            a2, r2 = AGE_NORMS[i + 1]
+            if r2 <= rmssd <= r1:
+                ratio = (r1 - rmssd) / (r1 - r2) if r1 != r2 else 0
+                est = int(a1 + ratio * (a2 - a1))
+                break
+        else:
+            est = 40
+
+    delta = (est - real_age) if real_age else None
+
+    if delta is not None:
+        if delta <= -5:
+            interp = f"Your autonomic nervous system is {abs(delta)} years younger than your real age. Keep doing what you're doing."
+        elif delta <= 2:
+            interp = f"Your autonomic age matches your real age. Healthy baseline."
+        elif delta <= 8:
+            interp = f"Your autonomic system shows {delta} years of premature aging. Focus on sleep, exercise, and stress management."
+        else:
+            interp = f"Your autonomic system is {delta} years older than your real age — a significant gap. Prioritize recovery: deep sleep, moderate aerobic exercise, deep breathing daily."
+    else:
+        interp = f"Estimated autonomic age: {est}."
+
+    return {"estimated_age": est, "delta": delta, "interpretation": interp}
 
 
 # ─────────────────────────────────────────────
@@ -209,6 +276,9 @@ class HiddenChainScorer:
             qi_blood=qi_blood,
             liver_depression=liver_depression,
             spleen_deficiency=spleen_deficiency,
+            autonomic_age=estimate_autonomic_age(resting_rmssd)["estimated_age"],
+            autonomic_age_delta=estimate_autonomic_age(resting_rmssd)["delta"],
+            autonomic_age_text=estimate_autonomic_age(resting_rmssd)["interpretation"],
         )
 
 
