@@ -50,3 +50,53 @@
 
 **Last verified**: 2026-01 (this is a *living* review, updating monthly)
 **Journal tier**: Q1 (IF 13.0, top 3% in sports medicine)
+
+---
+
+## 中文全文摘要 (Chinese Full-Text Summary)
+
+### 背景
+心率变异性（HRV）反映自主神经系统功能，现可通过可穿戴技术在现实环境中持续监测。但卵巢激素对HRV的影响仍不清楚。
+
+### 研究设计
+实时系统综述（Living systematic review）。检索PubMed、Web of Science、IEEE Xplore、SPORTDiscus、Embase，从建库至2025年12月。纳入16项研究，总计**19,322名女性参与者**。
+
+### 核心发现
+
+**1. 自然月经女性：HRV在周期中波动3–9%**
+- 卵泡期（周期前半段）：HRV较高（副交感神经优势）
+- 黄体期（周期后半段）：HRV降低3–9%
+- Jasinski (2024)：第5天RMSSD最高（+3.6ms），第21天最低（−3.2ms）
+- Sims (2021)：RMSSD从~70ms（周期前1/4）降至~64ms以下（周期后1/4）
+
+**2. 口服避孕药使用者：HRV模式完全不同**
+- CHC（联合激素避孕药）使用者的RMSSD振幅显著低于自然月经女性：**-0.51ms vs +4.65ms**（p < 0.001）
+- 在活性药丸服用期间HRV下降，撤退性出血期间回升
+
+**3. 绝经后：HRV显著下降**
+- pNN50：绝经前 **4.3** → 早期绝经后 **1.6** → 晚期绝经后 **2.4**（p = 0.001，降幅63%）
+- 中年女性（42–56岁）RMSSD显著低于年轻女性（18–35岁）：p < 0.01
+
+### 对Hidden Chain的意义
+1. 周期校准必须做——不能把黄体期的正常HRV下降误判为"压力"
+2. 口服避孕药用户需要单独的校准曲线
+3. 绝经后女性的HRV基线需要上调（天然HRV更低不代表"不健康"）
+4. 我们的Huawei手表数据通道在论文中得到验证——这篇证明可穿戴设备测HRV可行
+
+## Key data tables (from full text)
+
+### RMSSD across menstrual cycle (natural menstruating)
+| Study | Finding | Magnitude |
+|---|---|---|
+| Jasinski et al. 2024 | Day 5 peak, Day 21 trough | +3.6 / −3.2 ms |
+| Sims et al. 2021 | Q1 → Q4 decline | ~70 → <64 ms |
+| Alzueta et al. 2022 | Late cycle lower | −5.96 ms |
+| **Overall** | **Follicular → Luteal** | **3–9% decline** |
+
+### Postmenopause: pNN50 collapse
+| Group | pNN50 |
+|---|---|
+| Premenopausal | 4.3 ± 6.2 |
+| Early postmenopause (<5yr) | 1.6 ± 1.7 |
+| Late postmenopause (>5yr) | 2.4 ± 2.5 |
+**p = 0.001 (63% drop from pre- to postmenopause)**
