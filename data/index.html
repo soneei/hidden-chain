@@ -151,7 +151,7 @@ function updatePhaseHint() {
   hint.innerHTML = `Today is <strong>Day ${c.day}</strong> of ${c.length} — <strong>${c.phase}</strong> (this phase typically has ${c.expected}).${ext}`;
 }
 
-document.getElementById('periodStart').addEventListener('change', updatePhaseHint);
+document.getElementById('periodStart').addEventListener('change', () => { updatePhaseHint(); document.getElementById('periodStart').blur(); });
 document.getElementById('cycleLength').addEventListener('change', updatePhaseHint);
 
 // ── IndexedDB — persistent storage ──
@@ -189,8 +189,8 @@ async function renderHistory() {
 function submitCheckin() {
   const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
   const cyc = calcCycleDay();
-  if (!h || !r) return alert('Fill in HRV and Resting Heart Rate.');
-  if (!cyc) return alert('Pick a date for your last period start.');
+  if (!h || !r) { btn.disabled=false; btn.textContent='Submit → Get Score'; showInlineError('Please fill in HRV and Resting Heart Rate.'); return; }
+  if (!cyc) { btn.disabled=false; btn.textContent='Submit → Get Score'; showInlineError('Pick a date for your last period start.'); return; }
   const c = cyc.day;
   const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, mood_tags:document.getElementById('moodTagsVal').value, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
   const pk = parseInt(document.getElementById('peakHR').value), r1 = parseInt(document.getElementById('hrr1').value);
@@ -342,6 +342,13 @@ function estAutonomicAge(rmssd) {
   return {age: est, delta: null, text};
 }
 
+
+function showInlineError(msg) {
+  let el = document.getElementById('inlineError');
+  if (!el) { el = document.createElement('div'); el.id='inlineError'; el.style.cssText='background:#fce4ec;color:#c62828;padding:10px;border-radius:8px;margin-top:10px;font-size:13px;text-align:center;font-weight:500'; document.querySelector('.btn').parentNode.appendChild(el); }
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
 // ── Init ──
 idb().then(() => { renderHistory(); renderChart(); });
 const savedStart = localStorage.getItem('hc_periodStart');
