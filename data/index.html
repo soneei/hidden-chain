@@ -59,8 +59,20 @@
     <div class="field"><label>HRV — RMSSD (ms)</label><input type="number" id="hrv" step="0.1" min="10" max="200" placeholder="e.g. 45.0" required></div>
     <div class="field"><label>Resting HR (bpm)</label><input type="number" id="rhr" step="1" min="40" max="120" placeholder="e.g. 68" required></div>
   </div>
+  <div class="field">
+    <label>Mood tags (情绪标签)</label>
+    <div style="display:flex;gap:4px;flex-wrap:wrap" id="moodTags">
+      <button type="button" class="day-btn" onclick="toggleTag(this,'anxious')">Anxious (焦虑)</button>
+      <button type="button" class="day-btn" onclick="toggleTag(this,'exhausted')">Exhausted (疲惫)</button>
+      <button type="button" class="day-btn" onclick="toggleTag(this,'energetic')">Energetic (精力充沛)</button>
+      <button type="button" class="day-btn" onclick="toggleTag(this,'calm')">Calm (平静)</button>
+      <button type="button" class="day-btn" onclick="toggleTag(this,'irritable')">Irritable (烦躁)</button>
+      <button type="button" class="day-btn" onclick="toggleTag(this,'brain_fog')">Brain fog (脑雾)</button>
+    </div>
+    <input type="hidden" id="moodTagsVal" value="">
+  </div>
   <div class="inline">
-    <div class="field"><label>Mood (1-10)</label><input type="number" id="mood" min="1" max="10" placeholder="7"></div>
+    <div class="field"><label>Mood level (1-10)</label><input type="number" id="mood" min="1" max="10" placeholder="7"></div>
     <div class="field"><label>Sleep (hours)</label><input type="number" id="sleep" step="0.5" min="0" max="14" placeholder="7.5"></div>
   </div>
   <button class="btn" onclick="submitCheckin()">Submit → Get Score</button>
@@ -96,6 +108,14 @@
 
 <script>
 // ── Phase calculator from calendar ──
+function toggleTag(btn, tag) {
+  btn.classList.toggle('active');
+  const tags = [...document.querySelectorAll('#moodTags .day-btn.active')].map(b => b.textContent.match(/\([^)]+\)|[A-Z][a-z_]+/)?.[0]?.replace(/[()]/g,'') || b.dataset.tag || '');
+  document.getElementById('moodTagsVal').value = [...document.querySelectorAll('#moodTags .day-btn.active')].map(b => {
+    const t = b.textContent.split(' ')[0].toLowerCase();
+    return t;
+  }).join(',');
+}
 function calcCycleDay() {
   const d = document.getElementById('periodStart').value;
   const len = parseInt(document.getElementById('cycleLength').value) || 28;
@@ -164,7 +184,7 @@ function submitCheckin() {
   if (!h || !r) return alert('Fill in HRV and Resting Heart Rate.');
   if (!cyc) return alert('Pick a date for your last period start.');
   const c = cyc.day;
-  const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
+  const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, mood_tags:document.getElementById('moodTagsVal').value, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
   const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
 
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})

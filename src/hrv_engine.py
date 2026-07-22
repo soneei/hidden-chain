@@ -173,20 +173,32 @@ class TCMMetrics:
         - 恢复慢 → 脾主运化能力不足
         - 排除周期影响后仍异常 → 痰气互结
         """
-        # 气血不足：静息 HRV 越低，评分越高
-        # 正常静息 RMSSD 大约 30-60ms，低于 25 提示不足
-        qi_score = max(0, 100 - (resting_hrv / 30) * 100) if resting_hrv < 40 else 0
+        # 气血不足：静息 RMSSD vs 同龄正常基线 (Shaffer 2017)
+        # 正常 30-39岁 RMSSD ~42-50ms。低于 35 开始预警。
+        if resting_hrv <= 0:
+            qi_score = 80
+        elif resting_hrv >= 55:
+            qi_score = 0
+        else:
+            qi_score = max(0, min(100, (55 - resting_hrv) / 25 * 100))
 
-        # 肝郁气滞：恢复慢 + HRV 波动大
+        # 肝郁气滞：恢复慢 → 肝主疏泄受阻
         liver_score = 0
         if recovery.classification == "slow":
-            liver_score += 50
-        if abs(recovery.delta_hrv) > 20:
-            liver_score += 30
+            liver_score += 60
+        elif recovery.classification == "normal" and abs(normalized_hrv if normalized_hrv else 0) > 0.5:
+            liver_score += 25
+        if recovery.recovery_rate < 2:
+            liver_score += 20
         liver_score = min(100, liver_score)
 
-        # 脾虚：恢复速率慢
-        spleen_score = max(0, 100 - (recovery.recovery_rate * 5)) if recovery.recovery_rate > 0 else 50
+        # 脾虚：恢复速率慢 → 脾主运化不足
+        if recovery.recovery_rate <= 0:
+            spleen_score = 60
+        elif recovery.recovery_rate < 5:
+            spleen_score = max(10, int(60 - recovery.recovery_rate * 10))
+        else:
+            spleen_score = 0
 
         # 痰气互结：周期校准后仍异常（normalized_hrv 偏离 0 越多越异常）
         phlegm_score = min(100, abs(normalized_hrv) * 30) if abs(normalized_hrv) > 1 else 0
