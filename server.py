@@ -174,6 +174,8 @@ def checkin():
         "autonomic_age": hcs.autonomic_age,
         "autonomic_age_delta": hcs.autonomic_age_delta,
         "autonomic_age_text": hcs.autonomic_age_text,
+        "risk_alert": hcs.risk_alert,
+        "risk_alert_text": hcs.risk_alert_text,
         "trend": {
             "week_avg": round(trend.week_avg, 1),
             "month_avg": round(trend.month_avg, 1),

@@ -193,7 +193,7 @@ function submitCheckin() {
     .catch(() => {
       const sc = computePreview(h,r,c); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
       const aa = estAutonomicAge(h);
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text});
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text, risk_alert:aa.age <= 30 ? "green" : aa.age <= 45 ? "yellow" : "red"});
       renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });

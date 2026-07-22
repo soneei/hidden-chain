@@ -93,6 +93,13 @@ class HiddenChainScore:
     autonomic_age_delta: int | None = None
     autonomic_age_text: str = ""
 
+    # Disease Risk Alert (v0.4) — based on Jarczok/Thayer 2019 (N=9,550)
+    risk_alert: str = "green"  # "green" | "yellow" | "red"
+    risk_alert_text: str = ""
+
+    # Lifecycle stage (v0.4) — based on de Jager 2025
+    lifecycle_stage: str = "reproductive"  # "reproductive" | "perimenopausal" | "postmenopausal"
+
     def one_liner(self) -> str:
         """一句话结论"""
         return self.level.advice
@@ -109,6 +116,7 @@ class HiddenChainScore:
             f"──────────────────────────────",
             f"Cycle phase: {phase_en}",
             f"Autonomic Age: {self.autonomic_age} yrs" + (f" (real age: {self.autonomic_age_delta:+d} yrs)" if self.autonomic_age_delta is not None else ""),
+            f"Disease Risk: {self.risk_alert.upper()}" + (f" — {self.risk_alert_text}" if self.risk_alert_text else ""),
             f"──────────────────────────────",
             f"Sub-scores:",
             f"  HRV baseline  {self.hrv_baseline:>3}/100  {'#' * (self.hrv_baseline // 10)}",
@@ -198,6 +206,55 @@ def estimate_autonomic_age(rmssd: float, real_age: int | None = None) -> dict:
 
 
 # ─────────────────────────────────────────────
+# Disease Risk Alert — based on Jarczok/Thayer 2019 (N=9,550)
+# ─────────────────────────────────────────────
+
+RISK_THRESHOLDS = {
+    (16, 29): {"yellow": 45, "red": 25},
+    (30, 39): {"yellow": 38, "red": 25},
+    (40, 49): {"yellow": 30, "red": 25},
+    (50, 99): {"yellow": 25, "red": 20},
+}
+
+
+def compute_risk_alert(rmssd: float, age: int | None = None, history: list = None) -> dict:
+    """Three-tier disease risk alert from RMSSD against Jarczok thresholds."""
+    if rmssd is None or rmssd <= 0:
+        return {"level": "green", "text": ""}
+
+    ag = age or 35
+    yellow, red = 25, 20  # defaults
+    for (lo, hi), vals in RISK_THRESHOLDS.items():
+        if lo <= ag <= hi:
+            yellow, red = vals["yellow"], vals["red"]
+            break
+
+    level = "green"
+    text = ""
+
+    if rmssd < red:
+        level = "red"
+        text = "Alert: RMSSD below disease-risk threshold (Jarczok 2019). Prioritize rest, avoid high stress, consider consulting a doctor if sustained."
+    elif rmssd < yellow:
+        level = "yellow"
+        text = "Warning: RMSSD below age-expected range. Reduce load, prioritize sleep and recovery."
+
+    # Consecutive-day rule: if last 3 scores all in yellow or red
+    if history and len(history) >= 3:
+        recent = history[-3:]
+        reds = sum(1 for s in recent if s < red)
+        yellows = sum(1 for s in recent if s < yellow)
+        if reds >= 3:
+            level = "red"
+            text = "3+ consecutive days in disease-risk zone. Strongly recommend rest and medical consultation."
+        elif yellows + reds >= 3:
+            level = "yellow"
+            text = "Sustained low HRV for 3 days. Accumulated recovery debt. Prioritize rest."
+
+    return {"level": level, "text": text}
+
+
+# ─────────────────────────────────────────────
 # 评分计算引擎
 # ─────────────────────────────────────────────
 
@@ -279,6 +336,8 @@ class HiddenChainScorer:
             autonomic_age=estimate_autonomic_age(resting_rmssd)["estimated_age"],
             autonomic_age_delta=estimate_autonomic_age(resting_rmssd)["delta"],
             autonomic_age_text=estimate_autonomic_age(resting_rmssd)["interpretation"],
+            risk_alert=compute_risk_alert(resting_rmssd)["level"],
+            risk_alert_text=compute_risk_alert(resting_rmssd)["text"],
         )
 
 
