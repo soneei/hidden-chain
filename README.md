@@ -1,94 +1,151 @@
-# Hidden Chain
+<div align="center">
 
-> **"我用华为手表的PPG数据跑了一下Hidden Chain——底层是Thayer的神经内脏整合模型，加月经周期校准，再加中医辨证映射。结果出来了：气血不足、肝郁气滞、脾虚。跟我的中医把脉诊断完全对上了。被我自己做的算法惊呆了。"**
+<a href="https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work">
+  <h1><img src="https://raw.githubusercontent.com/soneei/hidden-chain/main/.github/logo.svg" width="36" style="vertical-align:middle"> Hidden Chain</h1>
+</a>
 
-**可穿戴设备 → 月经周期校准 → 中医辨证 → 自主神经年龄。一个数字，一句话，看清自己。**
+**⌚ PPG → 🧠 NVI → 🩺 TCM → 🔮 自主神经年龄**
 
-<p align="center">
-  <a href="https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work">
-    <strong>→ Try the live demo ←</strong>
-  </a>
-  &nbsp;|&nbsp;
-  <a href="https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work/autonomic-age-guide.html">
-    What is Autonomic Age?
-  </a>
-</p>
+[![Demo](https://img.shields.io/badge/🔗_Live_Demo-Try_it_now-7c3aed?style=for-the-badge&logoColor=white)](https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat)](#license)
+[![Research](https://img.shields.io/badge/papers-8-orange?style=flat)](research/)
+
+<blockquote>
+<em>"我用华为手表的PPG数据跑了一下Hidden Chain——底层是Thayer的神经内脏整合模型，加月经周期校准，再加中医辨证映射。结果出来了：气血不足、肝郁气滞、脾虚。跟我的中医把脉诊断完全对上了。被我自己做的算法惊呆了。"</em>
+</blockquote>
+
+<br>
+
+```
+📱 传感器层              🧬 算法层                📊 输出层
+────────────────────────────────────────────────────────────
+⌚ Huawei Watch          → HRV 周期校准            → Hidden Chain Score (0–100)
+📱 Apple Watch           → Autonomic Age 估算      → 自主神经年龄 (26 yrs)
+💍 Oura / Whoop          → TCM 辨证 (5个症型)     → 🟢 气血 🟡 肝郁 🔴 脾虚
+📊 CSV 手动输入          → 疾病风险三级预警 (绿/黄/红) → 一句话建议
+```
+
+</div>
 
 ---
 
-## What you get with one daily check-in
+## ✨ What you get
 
-```
-Your smartwatch →  Cycle-calibrated HRV  →  Hidden Chain Score (0-100)
-                                + Autonomic Age (自主神经年龄)
-                                + TCM diagnosis (气血/肝郁/脾虚)
-                                + Disease risk alert (绿/黄/红)
-```
+<table>
+<tr>
+<td width="25%" align="center">
 
-You wear a Huawei/Apple/OPPO watch. Enter 3-5 numbers. Hidden Chain reads your heart rate variability, corrects for your menstrual cycle phase, maps the result to TCM diagnostics, and gives you:
+### 🔮 One Score
+*0–100 Hidden Chain Score*
 
-- **One score.** How is your body doing today?
-- **One age.** How old is your autonomic nervous system?
-- **One sentence.** What should you do about it?
+Your body's daily status — cycle-calibrated, TCM-mapped, one number.
 
-No dashboard fatigue. No 20-page report. Just what matters.
+</td>
+<td width="25%" align="center">
 
-## 🔬 Research foundation — 8 papers, 4 Tier 1
+### 🧬 One Age
+*Autonomic Age*
 
-| # | Direction | Key paper | Core finding |
-|---|---|---|---|
-| 1 | HRV age baselines | Shaffer & Ginsberg 2017 (7,182 citations) | RMSSD 20s=55ms → 60s=25ms |
-| 2 | Female lifespan | de Jager 2025 (*Sports Med*, IF 13.0) | Postmenopause: pNN50 drops 63% |
-| 3 | TCM ↔ HRV | Olivera-Toro 2019 | Spleen def → SDNN↓17%, HF↓14% |
-| 4 | HRR aging clock | Cole 1999 (*NEJM*, IF 96.2) | HRR≤12bpm → 4× mortality risk |
-| 5 | Disease risk thresholds | Jarczok & Thayer 2019 (N=9,550) | RMSSD<25ms → CVD risk ×1.5-3.5 |
+How old is your nervous system? 34 going on 26, or 34 going on 52?
 
-Plus 3 core papers: Holzman & Bridgett 2017, de Jager 2025, Thayer & Lane 2009.
+</td>
+<td width="25%" align="center">
 
-Full notes in [/research](/research).
+### 🩺 Five Patterns
+*TCM Diagnosis*
 
-## 📊 How the score works
+气血不足 · 肝郁气滞 · 脾虚 · 痰气互结 · 阴阳平衡
 
-```
-Hidden Chain Score = baseline HRV (0.30)
-                   + recovery rate (0.25)
-                   + TCM balance (0.25)
-                   + cycle adjustment (0.20)
-```
+</td>
+<td width="25%" align="center">
 
-| Score | Level | Meaning |
-|---|---|---|
-| 81-100 | Purple | Peak — qi and blood are full. Challenge yourself. |
-| 61-80 | Green | Good — steady rhythm, maintain your pace. |
-| 31-60 | Yellow | Caution — liver qi mildly stagnant. Breathe, walk. |
-| 0-30 | Red | Rest — vital energy low. Prioritize recovery. |
+### 🚨 One Alert
+*Disease Risk*
 
-## 🏃 Quick start
+Green · Yellow · Red — powered by Thayer's 9,550-person study.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🔬 Built on hard science
+
+Every line of our engine cites a specific paper. Not marketing. Not vibes.
+
+| # | Title | Journal | IF | N | Key finding | Our code |
+|---|---|---|---|---|---|---|
+| ① | An overview of HRV metrics and norms | *Front. Public Health* | 5.0 | 21,438 | RMSSD drops from 55→25ms (age 20→60) | `estimate_autonomic_age()` |
+| ② | Wearable HRV across menstrual cycle | *Sports Medicine* | 13.0 | 16 studies | 3–9% HRV drop across cycle phases | `calibrate_cycle()` |
+| ③ | Neurovisceral integration model | *Neurosc. Biobehav. Rev.* | 9.0 | 1,788 cites | Brain→vagus→heart→health pathway | `TCMMetrics.from_hrv()` |
+| ④ | HRV for TCM pattern differentiation | *J Acupunct. Meridian Stud.* | – | 104 | Spleen def → SDNN↓17%, HF↓14% | `spleen_deficiency` |
+| ⑤ | HRR as predictor of mortality | *NEJM* | 96.2 | 2,428 | HRR≤12bpm → 4× death risk | `compute_risk_alert()` |
+
+**[→ Full research library (8 papers)](/research/)**
+
+---
+
+## 🚀 Try it in 30 seconds
 
 ```bash
 git clone git@github.com:soneei/hidden-chain.git
 cd hidden-chain
 pip install -r requirements.txt
 python server.py
+# → http://localhost:5000
 ```
 
-Open http://localhost:5000. Deploy on Render.com (free) for public access — Procfile included.
+Or **[open the live demo](https://599d46bcc932429097eb3443c52f3cfc.app.codebuddy.work)** — enter 3 numbers, get your score.
 
-## 📁 Project structure
+---
+
+## 🧭 Architecture
 
 ```
-src/          Core engine (zero-dep Python)
-  hrv_engine.py            Cycle calibration + dual-track HRV
-  hidden_chain_score.py    Scoring + Autonomic Age + risk alert
-  data_loader.py           Legacy Excel → engine bridge
+┌──────────────┐    ┌─────────────────────┐    ┌──────────────────┐
+│ Data Sources │ →  │ HRV Engine (Track B) │ →  │ Hidden Chain     │
+│              │    │                      │    │ Score + Report   │
+│ ⌚ PPG/ECG   │    │ ・Cycle calibration  │    │                  │
+│ 📋 CSV input │    │ ・Dual-track HRV     │    │ 0–100 Score      │
+│ 🩺 Manual    │    │ ・TCM mapping        │    │ Autonomic Age    │
+│              │    │ ・Recovery metrics   │    │ 5 TCM Patterns   │
+│              │    │                      │    │ Risk Alert       │
+└──────────────┘    └─────────────────────┘    └──────────────────┘
+                              ↑
+                     ┌────────┴─────────┐
+                     │ Research Layer   │
+                     │ (Track A, 8 papers)│
+                     │ ・Age baselines   │
+                     │ ・Lifecycle calib.│
+                     │ ・TCM↔HRV mapping │
+                     │ ・HRR aging clock │
+                     │ ・Disease risk    │
+                     └──────────────────┘
+```
+
+---
+
+## 📁 Project
+
+```
+src/         Core engine (zero external dependencies)
+  hrv_engine.py            HRV dual-track + TCM mapping
+  hidden_chain_score.py    Scoring + Autonomic Age + Risk Alert
+  data_loader.py           Excel/CSV bridge
   device_adapters.py       Huawei / Apple / OPPO parsers
-research/     8 papers, Tier 1+2 quality standard enforced
-design/       Architecture docs (Founder-Market Fit, DTx roadmap)
-data/         Web form, consumer education page, daily log template
-server.py     Flask API (SQLite, multi-user)
-Procfile      One-click deploy (Render, Railway)
+research/    8 papers, Tier 1+2 quality standard
+design/      Architecture & DTx roadmap
+data/        Web form (HTML), consumer education, daily log
+server.py    Flask API — SQLite, multi-user
 ```
 
-## License
+---
 
-MIT
+<div align="center">
+
+### Built with ❤️ by [@soneei](https://github.com/soneei) · MIT License
+
+[![Star](https://img.shields.io/github/stars/soneei/hidden-chain?style=social)](https://github.com/soneei/hidden-chain)
+
+</div>
