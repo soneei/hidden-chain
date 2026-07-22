@@ -286,7 +286,8 @@ function submitCheckin() {
     .catch(() => {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
       save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
+      const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj);
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:tcm0,offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
       renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
@@ -343,6 +344,37 @@ function showResult(r) {
   });
 }
 
+
+function computeTCMOffline(rmssd, phase, phaseAdj) {
+  // 气血不足：resting RMSSD vs age norm
+  let qi_score = 0;
+  if (rmssd <= 0) qi_score = 80;
+  else if (rmssd >= 55) qi_score = 0;
+  else qi_score = Math.max(0, Math.min(100, (55 - rmssd) / 25 * 100));
+
+  // 肝郁气滞：recovery slow + HRV unstable (in offline, use phaseAdj as proxy)
+  let liver_score = 0;
+  if (phaseAdj <= -3) liver_score += 60;
+  if (Math.abs(phaseAdj) > 0.5) liver_score += 25;
+  liver_score = Math.min(100, liver_score);
+
+  // 脾虚：recovery rate (offline: 0 by default)
+  let spleen_score = 50;
+
+  // 痰气互结
+  const phlegm_score = Math.min(100, Math.abs(phaseAdj) * 30);
+
+  // 阴阳平衡
+  const balance = Math.max(0, 100 - (qi_score*0.3 + liver_score*0.25 + spleen_score*0.25 + phlegm_score*0.2));
+
+  return {
+    qi_blood: Math.round(qi_score * 10) / 10,
+    liver_depression: Math.round(liver_score * 10) / 10,
+    spleen_deficiency: Math.round(spleen_score * 10) / 10,
+    phlegm_turbidity: Math.round(phlegm_score * 10) / 10,
+    yin_yang_balance: Math.round(balance * 10) / 10
+  };
+}
 // ── Init ──
 idb().then(() => { renderHistory(); renderChart(); });
 const savedStart = localStorage.getItem('hc_periodStart');
