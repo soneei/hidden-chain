@@ -170,6 +170,8 @@ def checkin():
             "qi_blood": round(hcs.qi_blood, 1),
             "liver_depression": round(hcs.liver_depression, 1),
             "spleen_deficiency": round(hcs.spleen_deficiency, 1),
+            "phlegm_turbidity": round(hcs.phlegm_turbidity, 1),
+            "yin_yang_balance": round(hcs.yin_yang_balance, 1),
         },
         "autonomic_age": hcs.autonomic_age,
         "autonomic_age_delta": hcs.autonomic_age_delta,

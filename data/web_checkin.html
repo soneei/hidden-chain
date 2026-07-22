@@ -330,7 +330,13 @@ function showResult(r) {
     html += '<strong>Recovery:</strong> ' + s.recovery + '/100 <span class="bar-bg"><span class="bar-fill" style="width:' + s.recovery + '%"></span></span><br>';
     html += '<strong>TCM balance:</strong> ' + s.tcm_balance + '/100<br>';
     html += '<hr style="border:none;border-top:1px solid #eee;margin:10px 0">';
-    html += '<strong>Qi-blood def.</strong> (气血不足): ' + t.qi_blood + '/100 | <strong>Liver stasis</strong> (肝郁气滞): ' + t.liver_depression + '/100 | <strong>Spleen def.</strong> (脾虚): ' + t.spleen_deficiency + '/100';
+    html += '<table style="font-size:12px;border-collapse:collapse;width:100%">';
+    html += '<tr><td><strong>Qi-blood def.</strong> (气血不足)</td><td style="text-align:right">' + t.qi_blood + '/100</td></tr>';
+    html += '<tr><td><strong>Liver stasis</strong> (肝郁气滞)</td><td style="text-align:right">' + t.liver_depression + '/100</td></tr>';
+    html += '<tr><td><strong>Spleen def.</strong> (脾虚)</td><td style="text-align:right">' + t.spleen_deficiency + '/100</td></tr>';
+    if (t.phlegm_turbidity !== undefined) html += '<tr><td><strong>Phlegm turbidity</strong> (痰气互结)</td><td style="text-align:right">' + (t.phlegm_turbidity||0) + '/100</td></tr>';
+    if (t.yin_yang_balance !== undefined) html += '<tr><td><strong>Yin-yang balance</strong> (阴阳平衡)</td><td style="text-align:right">' + (t.yin_yang_balance||0) + '/100</td></tr>';
+    html += '</table>';
     if (r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
     document.getElementById('detail').innerHTML = html;
     document.getElementById('result').classList.add('show');

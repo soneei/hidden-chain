@@ -83,10 +83,12 @@ class HiddenChainScore:
     tcm_balance: int          # 中医阴阳平衡 0-100
     phase_adjustment: int     # 周期调节项 ±10
 
-    # 中医明细
+    # 中医明细 (5个症型)
     qi_blood: float
     liver_depression: float
     spleen_deficiency: float
+    phlegm_turbidity: float = 0.0
+    yin_yang_balance: float = 0.0
 
     # Autonomic Age (自主神经年龄, v0.3)
     autonomic_age: int | None = None
@@ -360,6 +362,8 @@ class HiddenChainScorer:
             qi_blood=qi_blood,
             liver_depression=liver_depression,
             spleen_deficiency=spleen_deficiency,
+            phlegm_turbidity=phlegm_turbidity,
+            yin_yang_balance=yin_yang_balance,
             autonomic_age=aa["estimated_age"],
             autonomic_age_delta=aa["delta"],
             autonomic_age_text=aa["interpretation"],
