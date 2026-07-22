@@ -28,3 +28,4 @@ data/*.db
 # Environment
 .env
 *.env.local
+node_modules/
