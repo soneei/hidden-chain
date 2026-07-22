@@ -75,6 +75,14 @@
     <div class="field"><label>Mood level (1-10)</label><input type="number" id="mood" min="1" max="10" placeholder="7"></div>
     <div class="field"><label>Sleep (hours)</label><input type="number" id="sleep" step="0.5" min="0" max="14" placeholder="7.5"></div>
   </div>
+  <details style="margin-bottom:14px">
+    <summary style="font-size:12px;color:var(--muted);cursor:pointer">+ Exercise recovery (optional, 运动恢复可选)</summary>
+    <div class="inline" style="margin-top:8px">
+      <div class="field"><label>Peak HR — exercise (bpm)</label><input type="number" id="peakHR" min="80" max="220" placeholder="e.g. 165"></div>
+      <div class="field"><label>HR after 1 min rest (bpm)</label><input type="number" id="hrr1" min="40" max="200" placeholder="e.g. 135"></div>
+    </div>
+    <div id="hrrHint" style="font-size:11px;color:var(--muted);margin-top:4px">HRR-1 = peak − 1‑min HR. Norms: 20s 22‑28 | 30s 20‑26 | 40s 18‑24 | 50s 16‑22 | 60+ 14‑20 bpm (Cole 1999, NEJM)</div>
+  </details>
   <button class="btn" onclick="submitCheckin()">Submit → Get Score</button>
 </div>
 
@@ -185,15 +193,17 @@ function submitCheckin() {
   if (!cyc) return alert('Pick a date for your last period start.');
   const c = cyc.day;
   const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:parseInt(document.getElementById('mood').value)||null, mood_tags:document.getElementById('moodTagsVal').value, sleep_hours:parseFloat(document.getElementById('sleep').value)||null, date:new Date().toISOString().slice(0,10) };
+  const pk = parseInt(document.getElementById('peakHR').value), r1 = parseInt(document.getElementById('hrr1').value);
+  if (pk && r1) { p.hrr_peak = pk; p.hrr_1min = r1; }
   const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
 
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(r => r.ok?r.json():Promise.reject())
       .then(r => { if(r.error){alert(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
     .catch(() => {
-      const sc = computePreview(h,r,c); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
+            const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:p.mood_score,score:sc.score,phase:sc.phase});
       const aa = estAutonomicAge(h);
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text, risk_alert:aa.age <= 30 ? "green" : aa.age <= 45 ? "yellow" : "red"});
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:{qi_blood:0,liver_depression:0,spleen_deficiency:50},offline:true, autonomic_age:aa.age, hrr:hrr, autonomic_age_delta:aa.delta, autonomic_age_text:aa.text, risk_alert:aa.age <= 30 ? "green" : aa.age <= 45 ? "yellow" : "red"});
       renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
@@ -223,6 +233,12 @@ function showResult(r) {
       html += '<strong>Autonomic Age (自主神经年龄):</strong> <span style="font-weight:700;color:'+ac+'">'+aa+' yrs</span> '+as+'<br>';
       if (r.autonomic_age_text) html += '<span style="font-size:11px;color:var(--muted)">'+r.autonomic_age_text+'</span><br>';
     }
+    html += '    if (r.hrr) {
+      const hrr = r.hrr; const hc = hrr >= 26 ? 'var(--green)' : hrr >= 18 ? 'var(--accent)' : hrr >= 13 ? 'var(--yellow)' : 'var(--red)';
+      html += '<strong>Exercise Recovery (HRR-1):</strong> <span style="font-weight:700;color:'+hc+'">'+hrr+' bpm</span> ';
+      html += (hrr>=26?'(Excellent)':hrr>=18?'(Normal)':hrr>=13?'(Below avg)':'<span style=color:var(--red)>(Impaired - Cole 1999)</span>')+'<br>';
+    }
+
     html += '<strong>HRV baseline:</strong> '+s.hrv_baseline+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.hrv_baseline+'%"></span></span><br>'+'<strong>Recovery:</strong> '+s.recovery+'/100 '+'<span class="bar-bg"><span class="bar-fill" style="width:'+s.recovery+'%"></span></span><br>'+'<strong>TCM balance:</strong> '+s.tcm_balance+'/100<br>'+'<hr style="border:none;border-top:1px solid #eee;margin:10px 0">'+'<strong>Qi-blood def.</strong> ('+'\u6c14\u8840\u4e0d\u8db3'+'): '+t.qi_blood+'/100 | '+'<strong>Liver stasis</strong> ('+'\u809d\u90c1\u6c14\u6e10'+'): '+t.liver_depression+'/100 | '+'<strong>Spleen def.</strong> ('+'\u813e\u865a'+'): '+t.spleen_deficiency+'/100';
     if(r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
     document.getElementById('detail').innerHTML=html;
