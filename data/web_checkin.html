@@ -29,8 +29,10 @@
   .footer { text-align:center; font-size:12px; color:var(--muted); margin-top:20px; }
   .footer a { color:var(--accent); }
   .day-selector { display:flex; gap:4px; margin-bottom:16px; flex-wrap:wrap; }
-  .day-btn { padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); font-size:12px; cursor:pointer; }
-  .day-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .day-btn { padding:6px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); font-size:12px; cursor:pointer; transition: all 0.15s; user-select:none; -webkit-user-select:none; }
+  .day-btn.active { background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; }
+  .day-btn:hover { border-color:var(--accent); }
+  .day-btn:active { transform:scale(0.96); }
   .history-row { border-bottom:1px solid #eee; }
   .history-row td { padding:3px 6px; }
 </style>
