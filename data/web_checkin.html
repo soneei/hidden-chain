@@ -286,7 +286,7 @@ function submitCheckin() {
     .catch(() => {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
       save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
-      const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj);
+      const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj, r, sl, tags);
       showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:tcm0,offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
       renderHistory(); renderChart();
     })
@@ -345,27 +345,56 @@ function showResult(r) {
 }
 
 
-function computeTCMOffline(rmssd, phase, phaseAdj) {
-  // 气血不足：resting RMSSD vs age norm
-  let qi_score = 0;
-  if (rmssd <= 0) qi_score = 80;
-  else if (rmssd >= 55) qi_score = 0;
-  else qi_score = Math.max(0, Math.min(100, (55 - rmssd) / 25 * 100));
+function computeTCMOffline(rmssd, phase, phaseAdj, rhr, sleepHrs, moodTags) {
+  // ── 气血不足 ──
+  let qi_raw = 0;
+  if (rmssd <= 0) qi_raw = 90;
+  else if (rmssd >= 55) qi_raw = 0;
+  else if (rmssd >= 48) qi_raw = (55 - rmssd) / 7 * 40;
+  else if (rmssd >= 40) qi_raw = 40 + (48 - rmssd) / 8 * 30;
+  else if (rmssd >= 28) qi_raw = 70 + (40 - rmssd) / 12 * 20;
+  else qi_raw = 90 + (28 - rmssd) / 8 * 10;
 
-  // 肝郁气滞：recovery slow + HRV unstable (in offline, use phaseAdj as proxy)
+  let rhrB = 0, sleepB = 0;
+  if (rhr && rhr > 80) rhrB = 20;
+  else if (rhr && rhr > 70) rhrB = 10;
+  if (sleepHrs && sleepHrs > 0 && sleepHrs < 6) sleepB = 15;
+  let qi_score = Math.min(100, qi_raw + rhrB + sleepB);
+
+  // ── 肝郁气滞 ──
   let liver_score = 0;
-  if (phaseAdj <= -3) liver_score += 60;
-  if (Math.abs(phaseAdj) > 0.5) liver_score += 25;
+  if (phaseAdj <= -3) liver_score += 65;
+  else if (Math.abs(phaseAdj) > 0.5) liver_score += 35;
+  if (rhr && rhr > 80) liver_score += 15;
+  if (moodTags && (moodTags.indexOf('irritable') !== -1 || moodTags.indexOf('anxious') !== -1)) liver_score += 15;
+  if (sleepHrs && sleepHrs > 0 && sleepHrs < 5) liver_score += 10;
   liver_score = Math.min(100, liver_score);
 
-  // 脾虚：recovery rate (offline: 0 by default)
-  let spleen_score = 50;
+  // ── 脾虚 ──
+  let spleen_raw = 0;
+  let recRate = 2; // default recovery rate (offline)
+  if (recRate <= 0) spleen_raw = 65;
+  else if (recRate < 2) spleen_raw = 55;
+  else if (recRate < 4) spleen_raw = 40 - (recRate - 2) * 15;
+  else if (recRate < 6) spleen_raw = 25 - (recRate - 4) * 10;
+  else spleen_raw = 0;
+  if (moodTags && moodTags.indexOf('exhausted') !== -1) spleen_raw += 20;
+  if (moodTags && moodTags.indexOf('brain_fog') !== -1) spleen_raw += 15;
+  if (rmssd < 35 && rhr && rhr > 65) spleen_raw += 15;
+  let spleen_score = Math.min(100, spleen_raw);
 
-  // 痰气互结
-  const phlegm_score = Math.min(100, Math.abs(phaseAdj) * 30);
+  // ── 痰气互结 ──
+  let nh = Math.abs(phaseAdj) / 5; // use phaseAdj as normalized HRV proxy
+  let phlegm_score = 0;
+  if (nh <= 1) phlegm_score = 0;
+  else if (nh <= 2) phlegm_score = nh * 30;
+  else if (nh <= 4) phlegm_score = 60 + (nh - 2) * 15;
+  else phlegm_score = Math.min(100, 90 + (nh - 4) * 5);
+  if (moodTags && moodTags.indexOf('brain_fog') !== -1 && moodTags.indexOf('exhausted') !== -1) phlegm_score = Math.min(100, phlegm_score + 15);
 
-  // 阴阳平衡
-  const balance = Math.max(0, 100 - (qi_score*0.3 + liver_score*0.25 + spleen_score*0.25 + phlegm_score*0.2));
+  // ── 阴阳平衡 ──
+  const imbalance = qi_score*0.30 + liver_score*0.25 + spleen_score*0.25 + phlegm_score*0.20;
+  const balance = Math.max(0, Math.min(100, 100 - imbalance));
 
   return {
     qi_blood: Math.round(qi_score * 10) / 10,
@@ -375,6 +404,7 @@ function computeTCMOffline(rmssd, phase, phaseAdj) {
     yin_yang_balance: Math.round(balance * 10) / 10
   };
 }
+
 // ── Init ──
 idb().then(() => { renderHistory(); renderChart(); });
 const savedStart = localStorage.getItem('hc_periodStart');
