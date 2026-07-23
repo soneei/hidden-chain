@@ -239,22 +239,19 @@ RISK_THRESHOLDS = {
 }
 
 
-def compute_risk_alert(rmssd: float, age: int | None = None, history: list = None,
-                       recovery_speed: float | None = None, time_of_day: str = "morning") -> dict:
-    """Three-tier disease risk alert — v0.6 revised.
+def compute_risk_alert(rmssd: float, age: int | None = None, history: list = None) -> dict:
+    """Three-tier disease risk alert from RMSSD against Jarczok 2019 thresholds.
 
-    Changes from v0.5:
-    - Uses 3-day rolling average RMSSD instead of single snapshot (Jarczok thresholds apply
-      to population-level single measurements, not real-time intra-day tracking).
-    - Recovery speed is a positive signal — fast recovery can downgrade the alert level.
-    - High intra-day variability (large RMSSD range across same day) is also a positive signal
-      — it indicates autonomic flexibility, not disease risk.
+    Source: Jarczok, Koenig, Thayer et al. (2019), J Clin Med, N=9,550.
+    Daytime RMSSD < 25 ± 4 ms → elevated CVD risk across all major risk factors.
+
+    NOTE: These thresholds are for single daytime measurements.
+    Intra-day variability and recovery speed are NOT yet factored in —
+    a future revision needs a paper quantifying these as disease-risk modifiers.
     """
-
     if rmssd is None or rmssd <= 0:
         return {"level": "green", "text": ""}
 
-    # ── ① Age-specific thresholds from Jarczok 2019 ──
     ag = age or 35
     yellow, red = 25, 20  # defaults
     for (lo, hi), vals in RISK_THRESHOLDS.items():
@@ -262,34 +259,17 @@ def compute_risk_alert(rmssd: float, age: int | None = None, history: list = Non
             yellow, red = vals["yellow"], vals["red"]
             break
 
-    # ── ② Use 3-day rolling average if history available ──
-    effective_rmssd = rmssd
-    if history and len(history) >= 2:
-        recent = history[-3:]  # up to 3 most recent values
-        effective_rmssd = sum(recent) / len(recent)
-
-    # ── ③ Base assessment ──
     level = "green"
     text = ""
 
-    if effective_rmssd < red:
+    if rmssd < red:
         level = "red"
-        text = "Sustained RMSSD below disease-risk threshold (Jarczok 2019). Prioritize rest, avoid high stress, consider consulting a doctor if 5+ consecutive days."
-    elif effective_rmssd < yellow:
+        text = "RMSSD below disease-risk threshold (Jarczok 2019). Prioritize rest and recovery. Consult a doctor if sustained."
+    elif rmssd < yellow:
         level = "yellow"
-        text = "Sustained RMSSD below age-expected range. Reduce load, prioritize sleep and recovery."
+        text = "RMSSD below age-expected range. Reduce load, prioritize sleep and recovery."
 
-    # ── ④ Recovery speed = positive modifier ──
-    # Fast recovery (rmssd rises quickly after a dip) → autonomic system is responsive → NOT a disease risk
-    if recovery_speed is not None:
-        if recovery_speed > 5 and level == "red":
-            level = "yellow"
-            text = "RMSSD below threshold but rapid recovery observed — autonomic system is responsive. Monitor, not alarm."
-        elif recovery_speed > 3 and level == "yellow":
-            level = "green"
-            text = "RMSSD slightly low but fast recovery indicates good autonomic flexibility."
-
-    # ── ⑤ Consecutive-day rule: 3+ days in yellow or red → upgrade ──
+    # Consecutive-day rule: if last 3 scores all in yellow or red
     if history and len(history) >= 3:
         recent = history[-3:]
         reds = sum(1 for s in recent if s < red)
