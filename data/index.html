@@ -35,6 +35,7 @@
   .day-btn:active { transform:scale(0.96); }
   .history-row { border-bottom:1px solid #eee; }
   .history-row td { padding:3px 6px; }
+.export-btn{display:block;margin:12px auto;padding:10px 24px;border:2px solid #7c3aed;border-radius:8px;background:transparent;color:#7c3aed;font-size:14px;cursor:pointer}.export-btn:hover{background:#7c3aed;color:#fff}
 </style>
 </head>
 <body>
@@ -441,6 +442,26 @@ function savePeriodToLocal() {
 }
 document.getElementById('periodStart').addEventListener('change', savePeriodToLocal);
 document.getElementById('cycleLength').addEventListener('change', savePeriodToLocal);
+
+function exportCSV() {
+  const tx = db.transaction('checkins', 'readonly');
+  const store = tx.objectStore('checkins');
+  const req = store.getAll();
+  req.onsuccess = () => {
+    const rows = req.result;
+    if (!rows.length) { alert('No data yet. Submit first.'); return; }
+    const keys = Object.keys(rows[0]);
+    let csv = keys.join(',') + '\n';
+    rows.forEach(r => csv += keys.map(k => JSON.stringify(r[k]||'')).join(',') + '\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hidden_chain_export_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  };
+}
+
 </script>
+<button class="export-btn" onclick="exportCSV()">📥 Export My Data as CSV</button>
 </body>
 </html>
