@@ -172,22 +172,17 @@ const SUPABASE_URL = "https://itdgghheoakmimystv.supabase.co";
 const SUPABASE_KEY = "sb_publishable_qK1osaAV_exXmXbtIlAXlA_lO5aogbd";
 
 async function saveToSupabase(data) {
+  // Silently try Supabase — ignore errors, IndexedDB is the primary store
   try {
     const r = await fetch(SUPABASE_URL + "/rest/v1/checkins", {
       method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": "Bearer " + SUPABASE_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-      },
+      headers: { "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
       body: JSON.stringify(data)
     });
-    if (!r.ok) { const err = await r.text(); console.warn("Supabase save:", r.status, err); return false; }
-    return true;
+    if (r.ok) console.log("✓ Saved to cloud");
+    return r.ok;
   } catch(e) {
-    console.warn("Supabase offline — saved to IndexedDB only");
-    return false;
+    return false; // silently fall back — data already in IndexedDB
   }
 }
 
