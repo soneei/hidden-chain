@@ -444,8 +444,9 @@ document.getElementById('periodStart').addEventListener('change', savePeriodToLo
 document.getElementById('cycleLength').addEventListener('change', savePeriodToLocal);
 
 function exportCSV() {
-  const tx = db.transaction('checkins', 'readonly');
-  const store = tx.objectStore('checkins');
+  if (!db) { alert('DB not ready yet — refresh and try again'); return; }
+  const tx = db.transaction('logs', 'readonly');
+  const store = tx.objectStore('logs');
   const req = store.getAll();
   req.onsuccess = () => {
     const rows = req.result;
