@@ -166,6 +166,31 @@ function idb() {
   });
 }
 function all() { return new Promise(r => { if(!db) return r([]); const t = db.transaction(ST,'readonly'), s = t.objectStore(ST), q = s.getAll(); q.onsuccess = () => r(q.result.sort((a,b) => a.id-b.id)); q.onerror = () => r([]); }); }
+
+// ── Supabase 数据收集 ──
+const SUPABASE_URL = "https://itdgghheoakmimystv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_qK1osaAV_exXmXbtIlAXlA_lO5aogbd";
+
+async function saveToSupabase(data) {
+  try {
+    const r = await fetch(SUPABASE_URL + "/rest/v1/checkins", {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify(data)
+    });
+    if (!r.ok) { const err = await r.text(); console.warn("Supabase save:", r.status, err); return false; }
+    return true;
+  } catch(e) {
+    console.warn("Supabase offline — saved to IndexedDB only");
+    return false;
+  }
+}
+
 function save(e) { if(!db) return; const t = db.transaction(ST,'readwrite'); t.objectStore(ST).add(e); }
 function exportData() { all().then(d => { if(!d.length) { alert('No data yet.'); return; } const b = new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href=u; a.download='hidden_chain_data.json'; a.click(); URL.revokeObjectURL(u); }); }
 function importData(ev) { const f = ev.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = e => { try { const d = JSON.parse(e.target.result); const t = db.transaction(ST,'readwrite'), s = t.objectStore(ST); s.clear(); d.forEach(x => { delete x.id; s.add(x); }); t.oncomplete = () => location.reload(); } catch(_) { alert('Invalid file.'); } }; r.readAsText(f); ev.target.value = ''; }
@@ -287,6 +312,7 @@ function submitCheckin() {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
       save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
       const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj, r, sl, tags);
+      const supabaseData2 = {date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,mood_tags:tags,sleep_hours:sl,score:sc.score,phase:sc.phase,autonomic_age:aa.age,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr_peak:pk||null,hrr_1min:r1||null}; saveToSupabase(supabaseData2);
       showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:tcm0,offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
       renderHistory(); renderChart();
     })
