@@ -58,6 +58,7 @@
   </div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="phaseHint">Select a start date to see your current phase and cycle day.</div>
   <div class="inline">
+    <div class="field"><label>你的名字</label><input type="text" id="userName" placeholder="例如：雪宁" required></div>
     <div class="field"><label>HRV — RMSSD (ms)</label><input type="number" id="hrv" step="0.1" min="10" max="200" placeholder="e.g. 45.0" required></div>
     <div class="field"><label>Resting HR (bpm)</label><input type="number" id="rhr" step="1" min="40" max="120" placeholder="e.g. 68" required></div>
   </div>
@@ -296,13 +297,14 @@ function submitCheckin() {
   const sl = parseFloat(document.getElementById('sleep').value) || null;
   const tags = document.getElementById('moodTagsVal').value;
   const pk = parseInt(document.getElementById('peakHR').value), r1 = parseInt(document.getElementById('hrr1').value);
-  const p = { hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:m, mood_tags:tags, sleep_hours:sl, date:new Date().toISOString().slice(0,10) };
+  const name = document.getElementById('userName')?.value?.trim() || 'anonymous';
+    const p = { user_id:name, hrv_rmssd:h, resting_hr:r, cycle_day:c, mood_score:m, mood_tags:tags, sleep_hours:sl, date:new Date().toISOString().slice(0,10) };
   if (pk && r1) { p.hrr_peak = pk; p.hrr_1min = r1; }
   const btn = document.querySelector('.btn'); btn.disabled=true; btn.textContent='Analyzing...';
 
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(r => r.ok?r.json():Promise.reject())
-    .then(r => { if(r.error){showInlineError(r.error);return;} showResult(r); save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
+    .then(r => { if(r.error){showInlineError(r.error);return;} showResult(r); save({user_id:name,date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
     .catch(() => {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
       save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
