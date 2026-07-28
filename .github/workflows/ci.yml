@@ -61,10 +61,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install pytest
-        run: pip install pytest
+      - name: Install pytest + coverage
+        run: pip install pytest pytest-cov
       # Behavioral regression suite. The founder N=1 case (research/009) is
-      # the validation oracle. Any score-threshold or autonomic-age drift
-      # fails the build instead of shipping silently.
-      - name: Run pytest suite
-        run: pytest tests/test_engine.py -q
+      # the validation oracle. Coverage gate (80% on the engine core) is
+      # enforced via [tool.coverage.report] fail_under in pyproject.toml;
+      # data_loader.py / device_adapters.py (pandas/device I/O adapters) are
+      # omitted there so the gate stays meaningful on the auditable science.
+      - name: Run pytest suite with coverage gate
+        run: pytest tests/ --cov=src --cov-report=term-missing -q

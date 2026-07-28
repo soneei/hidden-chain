@@ -13,6 +13,7 @@
 - [x] 2026-07-28 接入质量门禁①：`.github/workflows/ci.yml`，push/PR 到 main 时于 py3.10–3.12 矩阵跑 `py_compile` + `smoke_test.py`，不过不许合并。
 - [x] 2026-07-28 接入质量门禁②：`type-check` job 跑 `mypy src/`（读 `pyproject.toml` 配置）。修复 27 个类型错误（含 `TCMetrics` 拼写 bug、`from_day` 移入 `CyclePhase` 枚举、Optional 字段收紧、int/float 标注），新增 `pyproject.toml`。
 - [x] 2026-07-28 接入质量门禁③：`unit-tests` job 跑 `pytest tests/test_engine.py`（35 passed）。将 `research/009` 创始人 N=1 案例固化为验证 oracle（HRV 43→自主神经年龄 36 精确吻合），覆盖评分等级边界、CyclePhase 边界、风险评估阈值、趋势判定，新增 `tests/test_engine.py`。
+- [x] 2026-07-28 补 `tests/test_hrv_engine.py`（核心引擎覆盖，新增 23 用例），并接入**覆盖率门槛**：`pyproject.toml` 配 `[tool.coverage]`（source=src，omit data_loader/device_adapters 两个 pandas/设备 I/O 适配层，`fail_under=80`）；`[tool.pytest.ini_options]` 设 `python_files=test_*.py`（排除 smoke_test.py 走 pytest 收集）。核心引擎覆盖率 85%（hidden_chain_score 80% / hrv_engine 90%），58 passed，达标。CI `unit-tests` job 改跑 `pytest tests/ --cov=src`。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [ ] [smoke] 用 `research/006_TCM-pattern-HRV-quantification.md` 精修 TCM 映射阈值，并以 `research/009_founder_n1_case_study.md` 真实案例回测，断言隐链评分输出与中医辨证一致。验收：在 smoke 中新增 case 回测用例并通过。
