@@ -29,6 +29,7 @@
 - [ ] [manual] 部署到 Render.com 提供公网访问：编写 render 部署配置 + 启动说明，本地可起 `server.py` 自检。需凭据/环境变量，标注阻塞项。
 
 - [ ] [manual] 请执业中医师逐条审校 `tcm_ontology.py` 的 89 条辨证要点/舌脉/病因病机（尤其复合证型与外感传变）。验收：需人工，自动化应 skip。
-- [ ] [manual] 报告层：基于用户 5 轴 HRV 倾向，用 `catalog_by_organ/by_principle/by_etiology` 高亮"相关但 HRV 不可测"的证型家族，显式标注需面诊。
+- [x] 2026-07-28 **报告层落地（消费 research/014 本体）**：新增 `src/tcm_report.py`（纯函数 `build_tcm_report` + `render_markdown`，消费 `TCMAssessment`，按高倾向轴的**脏腑/八纲维度**从 `tcm_ontology` 拉同家族证型，区分「HRV 可提示」vs「必须面诊」，输出 `TCMReport` 含 `must_see_clinic` 清单 + 非诊断声明）；新增 `tests/test_tcm_report.py`（6 用例，含「高倾向触发家族 / 需面诊非空 / 低分无家族 / 合规声明」断言）；新增 `tools/tcm_report_demo.py`（CLI 生成样例 md 到 `.workbuddy/tcm_reports/sample.md`，本地不推送，供 7 天后 3 真人数据套用）。四关全绿、86 passed、覆盖率 91%。
+- [ ] [manual] 接入 3 真人 7 天数据：把真实 HRV 采集（设备/CSV）送进 `estimate_tcm` → `build_tcm_report` → `render_markdown`，每人生成一份报告；需先确认数据格式 + 知情同意/匿名 ID。验收：需人工核对数据管线。
 
 ## 阻塞 / 跳过记录（自动化在此追加 `[skip]` 原因）
