@@ -93,7 +93,7 @@ def phase_to_day(phase_text: str) -> Optional[int]:
 
 
 def prepare_for_engine(records: list[dict], user_id: str = "U001_Sona",
-                       device_filter: str = None) -> tuple[list, list, list]:
+                       device_filter: str | None = None) -> tuple[list, list, list]:
     """Convert raw records to engine-ready format.
 
     Returns:
@@ -167,7 +167,7 @@ CSV_TEMPLATE_ROWS = [
 ]
 
 
-def create_template(path: str = None):
+def create_template(path: str | None = None):
     """Generate a daily-log CSV template for new users."""
     if path is None:
         path = str(Path(__file__).parent.parent / "data" / "daily_log_template.csv")

@@ -1,0 +1,6 @@
+[tool.mypy]
+# Engine targets Python >=3.10 (uses PEP 604 `X | None` syntax).
+python_version = "3.10"
+# data_loader.py imports pandas only for an optional legacy Excel path;
+# we don't vendor pandas-stubs, so ignore that one missing stub.
+ignore_missing_imports = true

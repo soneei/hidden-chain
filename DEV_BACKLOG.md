@@ -11,6 +11,7 @@
 ## 已完成
 - [x] 2026-07-28 建立冒烟自测基线 `tests/smoke_test.py`（import 全引擎 + 校验 ScoreLevel 契约）。
 - [x] 2026-07-28 接入质量门禁①：`.github/workflows/ci.yml`，push/PR 到 main 时于 py3.10–3.12 矩阵跑 `py_compile` + `smoke_test.py`，不过不许合并。
+- [x] 2026-07-28 接入质量门禁②：`type-check` job 跑 `mypy src/`（读 `pyproject.toml` 配置）。修复 27 个类型错误（含 `TCMetrics` 拼写 bug、`from_day` 移入 `CyclePhase` 枚举、Optional 字段收紧、int/float 标注），新增 `pyproject.toml`。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [ ] [smoke] 用 `research/006_TCM-pattern-HRV-quantification.md` 精修 TCM 映射阈值，并以 `research/009_founder_n1_case_study.md` 真实案例回测，断言隐链评分输出与中医辨证一致。验收：在 smoke 中新增 case 回测用例并通过。

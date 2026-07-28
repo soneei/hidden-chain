@@ -97,7 +97,7 @@ def parse_apple_health_xml(path: str) -> list[NormalizedRecord]:
 
     # Collect records by date
     from collections import defaultdict
-    daily = defaultdict(dict)
+    daily: defaultdict[str, dict] = defaultdict(dict)
 
     for record in root.findall(".//Record"):
         rtype = record.get("type", "")

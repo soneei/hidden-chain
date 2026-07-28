@@ -25,30 +25,6 @@ from hidden_chain_score import (
 )
 
 # ──────────────────────────────────────────────
-# 第 2 层：扩展 CyclePhase（添加 from_day）
-# ──────────────────────────────────────────────
-
-# 给 imported CyclePhase 添加 from_day 方法
-def _cycle_phase_from_day(day: int, cycle_length: int = 28) -> CyclePhase:
-    if day < 1 or day > cycle_length:
-        raise ValueError(f"day must be between 1 and {cycle_length}")
-    if cycle_length != 28:
-        day = int(day * 28 / cycle_length)
-    if 1 <= day <= 5:
-        return CyclePhase.MENSTRUAL
-    elif 6 <= day <= 14:
-        return CyclePhase.FOLLICULAR
-    elif 15 <= day <= 17:
-        return CyclePhase.OVULATORY
-    elif 18 <= day <= 24:
-        return CyclePhase.LUTEAL
-    else:
-        return CyclePhase.PREMENSTRUAL
-
-CyclePhase.from_day = staticmethod(_cycle_phase_from_day)
-
-
-# ──────────────────────────────────────────────
 # 第 1 层 & 第 2 层：HRV 数据记录
 # ──────────────────────────────────────────────
 
@@ -87,8 +63,8 @@ class CycleCalibrator:
             phase = CyclePhase.from_day(day)
             phase_values[phase.value].append(record.rmssd)
 
-        for phase, values in phase_values.items():
-            self.phase_stats[phase] = {
+        for phase_key, values in phase_values.items():
+            self.phase_stats[phase_key] = {
                 "mean": statistics.mean(values),
                 "std": statistics.stdev(values) if len(values) > 1 else 1.0,
                 "count": len(values),
@@ -166,7 +142,7 @@ class TCMMetrics:
     def from_hrv(cls, resting_hrv: float, normalized_hrv: float,
                  recovery: RecoveryMetrics, resting_hr: float | None = None,
                  sleep_hours: float | None = None,
-                 mood_tags: list[str] | None = None) -> "TCMetrics":
+                 mood_tags: list[str] | None = None) -> "TCMMetrics":
         """从多维度数据映射到中医证型评分。
 
         ------------------------------------------------
@@ -188,6 +164,7 @@ class TCMMetrics:
         # ── ① 气血不足 (Qi-Blood Deficiency) ──
         # 主信号：RMSSD 低于年龄-正常基线
         # 正常基线参考 Shaffer 2017: 20s=55ms, 30s=48ms, 40s=40ms, 50s=32ms, 60s=28ms
+        qi_raw: float = 0.0
         if resting_hrv <= 0:
             qi_raw = 90
         elif resting_hrv >= 55:
@@ -245,7 +222,7 @@ class TCMMetrics:
 
         # ── ③ 脾虚 (Spleen Deficiency) ──
         # 主信号：恢复速率慢→脾主运化不足（Olivera-Toro 2019: 脾虚→HRV↓17%）
-        spleen_raw = 0
+        spleen_raw: float = 0.0
         if recovery.recovery_rate is not None:
             if recovery.recovery_rate <= 0:
                 spleen_raw = 65
@@ -276,7 +253,7 @@ class TCMMetrics:
         # Yang 2008: 肝郁痰阻型 vagal 下降是所有证型中最严重的
         nh = normalized_hrv if normalized_hrv is not None else 0
         if abs(nh) <= 1:
-            phlegm_score = 0
+            phlegm_score: float = 0.0
         elif abs(nh) <= 2:
             phlegm_score = abs(nh) * 30  # 1→30, 2→60
         elif abs(nh) <= 4:
@@ -316,9 +293,9 @@ class DailyRegulationIndex:
     """每日调节指数"""
     score: int                # 0-100
     level: str                # red / yellow / green / purple
-    tcm: Optional["TCMMetrics"] = None
-    recovery: Optional["RecoveryMetrics"] = None
-    phase: Optional[CyclePhase] = None
+    tcm: "TCMMetrics"
+    recovery: "RecoveryMetrics"
+    phase: CyclePhase
 
     @classmethod
     def compute(cls, normalized_hrv: float, resting_hrv: float,
@@ -380,7 +357,7 @@ class HRVEngine:
         self._is_fitted = True
 
     def analyze_day(self, resting_record: HRVRecord,
-                    event_records: list[HRVRecord] = None,
+                    event_records: list[HRVRecord] | None = None,
                     day_of_cycle: int = 1,
                     baseline_hrv: float = 40.0) -> tuple[DailyRegulationIndex, HiddenChainScore]:
         """分析单日数据，输出完整报告（调节指数 + 隐链评分）"""

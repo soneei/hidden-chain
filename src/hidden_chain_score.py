@@ -47,6 +47,23 @@ class CyclePhase(Enum):
     LUTEAL = "luteal"
     PREMENSTRUAL = "premenstrual"
 
+    @staticmethod
+    def from_day(day: int, cycle_length: int = 28) -> "CyclePhase":
+        if day < 1 or day > cycle_length:
+            raise ValueError(f"day must be between 1 and {cycle_length}")
+        if cycle_length != 28:
+            day = int(day * 28 / cycle_length)
+        if 1 <= day <= 5:
+            return CyclePhase.MENSTRUAL
+        elif 6 <= day <= 14:
+            return CyclePhase.FOLLICULAR
+        elif 15 <= day <= 17:
+            return CyclePhase.OVULATORY
+        elif 18 <= day <= 24:
+            return CyclePhase.LUTEAL
+        else:
+            return CyclePhase.PREMENSTRUAL
+
     @property
     def label_cn(self) -> str:
         return {
@@ -81,7 +98,7 @@ class HiddenChainScore:
     hrv_baseline: int         # 周期校准后的 HRV 基线 0-100
     recovery_index: int       # 恢复速度评分 0-100
     tcm_balance: int          # 中医阴阳平衡 0-100
-    phase_adjustment: int     # 周期调节项 ±10
+    phase_adjustment: float    # 周期调节项 ±10
 
     # 中医明细 (5个症型)
     qi_blood: float
@@ -239,7 +256,7 @@ RISK_THRESHOLDS = {
 }
 
 
-def compute_risk_alert(rmssd: float, age: int | None = None, history: list = None) -> dict:
+def compute_risk_alert(rmssd: float, age: int | None = None, history: list | None = None) -> dict:
     """Three-tier disease risk alert from RMSSD against Jarczok 2019 thresholds.
 
     Source: Jarczok, Koenig, Thayer et al. (2019), J Clin Med, N=9,550.
