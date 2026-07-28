@@ -3,7 +3,7 @@
 由每日自动化代理（工作日上午 9 点）消费：**每次只取第一个 `[ ]` 任务执行**，做完标记 `[x]`，并写运行日志到本地 `.workbuddy/daily_dev_log/YYYY-MM-DD.md`（不推送）。
 
 ## verify 级别说明
-- `[smoke]`：必须 `python3 tests/smoke_test.py` **且** `pytest tests/test_engine.py` 退出码均为 0 才允许 commit + push；任一失败则回退改动并报告。
+- `[smoke]`：必须**同时**满足三关才允许 commit + push（任一失败则回退改动并报告）：① `python3 tests/smoke_test.py` 退出码 0；② `pytest tests/ --cov=src` 退出码 0 且覆盖率 ≥80%（pyproject `fail_under`）；③ `mypy src/` 退出码 0。
 - `[manual]`：实现后仍以 smoke 为"不破坏引擎"的底线；通过则 commit + push，但 commit 信息以 `[needs-human-verify]` 开头，并在日志标注"需人工在浏览器/凭凭据验证"。
 
 ---
@@ -14,6 +14,7 @@
 - [x] 2026-07-28 接入质量门禁②：`type-check` job 跑 `mypy src/`（读 `pyproject.toml` 配置）。修复 27 个类型错误（含 `TCMetrics` 拼写 bug、`from_day` 移入 `CyclePhase` 枚举、Optional 字段收紧、int/float 标注），新增 `pyproject.toml`。
 - [x] 2026-07-28 接入质量门禁③：`unit-tests` job 跑 `pytest tests/test_engine.py`（35 passed）。将 `research/009` 创始人 N=1 案例固化为验证 oracle（HRV 43→自主神经年龄 36 精确吻合），覆盖评分等级边界、CyclePhase 边界、风险评估阈值、趋势判定，新增 `tests/test_engine.py`。
 - [x] 2026-07-28 补 `tests/test_hrv_engine.py`（核心引擎覆盖，新增 23 用例），并接入**覆盖率门槛**：`pyproject.toml` 配 `[tool.coverage]`（source=src，omit data_loader/device_adapters 两个 pandas/设备 I/O 适配层，`fail_under=80`）；`[tool.pytest.ini_options]` 设 `python_files=test_*.py`（排除 smoke_test.py 走 pytest 收集）。核心引擎覆盖率 85%（hidden_chain_score 80% / hrv_engine 90%），58 passed，达标。CI `unit-tests` job 改跑 `pytest tests/ --cov=src`。
+- [x] 2026-07-28 新增 `tools/ci_status_report.py`：本地镜像 CI 四关、`subprocess` 跑 `py_compile`/`smoke_test`/`mypy`/`pytest --cov`，解析通过率与覆盖率，输出可读 Markdown 状态报告。每日自动化步骤 8.5 在跑完迭代后调用它，把报告写入 `.workbuddy/ci_reports/YYYY-MM-DD.md`（本地，不推送），让用户无需登录 GitHub 即可看当日门禁状态。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [ ] [smoke] 用 `research/006_TCM-pattern-HRV-quantification.md` 精修 TCM 映射阈值，并以 `research/009_founder_n1_case_study.md` 真实案例回测，断言隐链评分输出与中医辨证一致。验收：在 smoke 中新增 case 回测用例并通过。
