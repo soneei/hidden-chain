@@ -92,7 +92,7 @@ class RecoveryMetrics:
     """压力事件后的恢复指标"""
     delta_hrv: float           # 事件前后的 HRV 变化量 (ms)
     recovery_time_min: float   # 恢复到基线所需时间 (分钟)
-    recovery_rate: float       # 恢复速率 (ms/min)
+    recovery_rate: float | None  # 恢复速率 (ms/min)；无恢复测量时为 None
     classification: str        # 恢复等级: fast / normal / slow
 
     @classmethod
@@ -232,6 +232,11 @@ class HRVEngine:
             baseline_hrv=baseline_hrv,
             timestamps_min=[0],  # 简化处理
         )
+        # 单次每日打卡无恢复事件(未填运动 HRR)时，recovery_rate 原会被算成 0，
+        # 而 _spleen_score 把 rr<=0 当最重脾虚(65分)——属误判。置 None 让
+        # _spleen_score 跳过恢复惩罚，仅参考情绪标签/HRV，符合「无测量=未知」。
+        if not event_records:
+            recovery.recovery_rate = None
 
         # 中医映射
         tcm = TCMMetrics.from_hrv(resting_record.rmssd, normalized_hrv, recovery)

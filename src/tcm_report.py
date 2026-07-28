@@ -312,3 +312,41 @@ def render_markdown(report: TCMReport) -> str:
                  "切勿仅凭 HRV 自行判断或处置。")
     lines.append("")
     return "\n".join(lines)
+
+
+def report_to_dict(report: TCMReport) -> dict:
+    """Serialize a TCMReport into a JSON-friendly dict.
+
+    Enums (SyndromeId / EvidenceGrade) are reduced to their ``value`` string
+    so the result is directly ``json.dumps``-able for the web API.
+    """
+    def member_to_dict(m: FamilyMember) -> dict:
+        return {
+            "id": m.id,
+            "name_cn": m.name_cn,
+            "name_en": m.name_en,
+            "hrv_detectable": m.hrv_detectable,
+            "evidence": m.evidence.value,
+            "note": m.note,
+            "has_citations": m.has_citations,
+        }
+
+    return {
+        "generated_at": report.generated_at,
+        "scored_axes": [
+            {"name_cn": n, "score": s, "evidence": g.value}
+            for (n, s, g) in report.scored_axes
+        ],
+        "primary": report.primary,
+        "secondary": report.secondary,
+        "family_clusters": [
+            {
+                "label": c.label,
+                "trigger_score": c.trigger_score,
+                "members": [member_to_dict(m) for m in c.members],
+            }
+            for c in report.family_clusters
+        ],
+        "must_see_clinic": [member_to_dict(m) for m in report.must_see_clinic],
+        "disclaimer": report.disclaimer,
+    }

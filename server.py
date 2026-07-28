@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from hrv_engine import HRVEngine, HRVRecord, CyclePhase
 from hidden_chain_score import HiddenChainScorer, TrendAnalysis
+from tcm_report import build_tcm_report, report_to_dict
 
 # ── App setup ──
 BASE_DIR = Path(__file__).parent
@@ -77,7 +78,7 @@ def run_engine_for_user(user_id="default", cycle_day=None):
     conn.close()
 
     if not rows:
-        return None, None, "No history found."
+        return None, None, None, "No history found."
 
     records = []
     days = []
@@ -91,7 +92,7 @@ def run_engine_for_user(user_id="default", cycle_day=None):
         days.append(int(cd))
 
     if not records:
-        return None, None, "No valid records with cycle day."
+        return None, None, None, "No valid records with cycle day."
 
     engine = HRVEngine()
     if len(records) >= 3:
@@ -102,7 +103,7 @@ def run_engine_for_user(user_id="default", cycle_day=None):
     reg_idx, hcs = engine.analyze_day(records[-1], day_of_cycle=day, baseline_hrv=baseline)
     trend = TrendAnalysis.from_history(get_history(user_id, 30))
 
-    return hcs, trend, None
+    return hcs, reg_idx, trend, None
 
 
 # ── Routes ──
@@ -140,10 +141,18 @@ def checkin():
     conn.close()
 
     # Run engine
-    hcs, trend, error = run_engine_for_user(user_id, cycle_day)
+    hcs, index, trend, error = run_engine_for_user(user_id, cycle_day)
 
     if error:
         return jsonify({"error": error}), 400
+
+    # 富报告：89 证型 TCM 报告层（家族聚类 + 必须面诊 + 证据等级）
+    tcm_report = None
+    if index is not None:
+        try:
+            tcm_report = report_to_dict(build_tcm_report(index.tcm))
+        except Exception:
+            tcm_report = None
 
     # Update score back to DB
     conn = sqlite3.connect(DB_PATH)
@@ -178,6 +187,7 @@ def checkin():
         "autonomic_age_text": hcs.autonomic_age_text,
         "risk_alert": hcs.risk_alert,
         "risk_alert_text": hcs.risk_alert_text,
+        "tcm_report": tcm_report,
         "trend": {
             "week_avg": round(trend.week_avg, 1),
             "month_avg": round(trend.month_avg, 1),
@@ -190,9 +200,16 @@ def checkin():
 @app.route("/api/dashboard/<user_id>")
 def dashboard(user_id):
     """Return user's history and latest score."""
-    hcs, trend, error = run_engine_for_user(user_id)
+    hcs, index, trend, error = run_engine_for_user(user_id)
     if error:
         return jsonify({"error": error}), 404
+
+    tcm_report = None
+    if index is not None:
+        try:
+            tcm_report = report_to_dict(build_tcm_report(index.tcm))
+        except Exception:
+            tcm_report = None
 
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
@@ -206,6 +223,7 @@ def dashboard(user_id):
         "level": hcs.level.value,
         "takeaway": hcs.one_liner(),
         "phase": hcs.phase.value,
+        "tcm_report": tcm_report,
         "trend": {
             "week_avg": round(trend.week_avg, 1) if trend else 0,
             "week_trend": trend.week_trend if trend else "stable",

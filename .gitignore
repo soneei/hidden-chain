@@ -43,3 +43,6 @@ tests/__pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# 前端部署构建目录（由 data/web_checkin.html + src 引擎生成，不入库）
+frontend_dist/

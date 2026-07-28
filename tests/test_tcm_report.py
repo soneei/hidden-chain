@@ -10,7 +10,7 @@ Key compliance assertions:
 
 from tcm_theory import SyndromeId, EvidenceGrade
 from tcm_hrv_estimator import TCMAssessment
-from tcm_report import build_tcm_report, render_markdown
+from tcm_report import build_tcm_report, render_markdown, report_to_dict
 
 
 def _make_assessment(qi, liver, spleen, phlegm, balance,
@@ -120,3 +120,21 @@ def test_markdown_shows_citation_status():
     )
     md = render_markdown(build_tcm_report(a))
     assert "文献支撑" in md, "citation column header must be present"
+
+
+def test_report_to_dict_serializes_without_enums():
+    """report_to_dict must be json.dumps-able (enums -> values)."""
+    import json
+    a = _make_assessment(
+        qi=60.0, liver=72.0, spleen=55.0, phlegm=30.0, balance=40.0,
+        primary=SyndromeId.LIVER_QI,
+        secondary=[SyndromeId.LIVER_SPLEEN],
+    )
+    d = report_to_dict(build_tcm_report(a))
+    payload = json.dumps(d)  # must not raise on enums
+    assert json.loads(payload) == d
+    assert d["primary"] == "肝郁气滞", d["primary"]
+    assert d["scored_axes"][0]["evidence"] in ("weak", "moderate", "strong")
+    assert all(isinstance(m["evidence"], str) for c in d["family_clusters"] for m in c["members"])
+    # must-see entries are HRV-non-proxyable
+    assert all(m["hrv_detectable"] is False for m in d["must_see_clinic"])

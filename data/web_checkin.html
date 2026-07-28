@@ -36,6 +36,21 @@
   .history-row { border-bottom:1px solid #eee; }
   .history-row td { padding:3px 6px; }
 .export-btn{display:block;margin:12px auto;padding:10px 24px;border:2px solid #7c3aed;border-radius:8px;background:transparent;color:#7c3aed;font-size:14px;cursor:pointer}.export-btn:hover{background:#7c3aed;color:#fff}
+
+/* ── 富报告（89 证型 TCM 报告层）── */
+.tcm-rep{margin-top:14px;border-top:1px dashed #d8d8e8;padding-top:12px}
+.tcm-title{font-size:14px;font-weight:700;color:#2b2350;margin-bottom:6px}
+.tcm-src{font-size:10px;font-weight:400;color:#7c3aed;background:#f3edff;border:1px solid #e3d5ff;border-radius:10px;padding:2px 8px;margin-left:8px;vertical-align:middle}
+.tcm-disc{font-size:11px;color:#9a3b2e;background:#fdf2ef;border-left:3px solid #c0392b;padding:6px 9px;border-radius:0 6px 6px 0;margin-bottom:10px;line-height:1.5}
+.tcm-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0 4px}
+.tcm-tbl th,.tcm-tbl td{border:1px solid #eceef2;padding:5px 7px;text-align:left;vertical-align:top}
+.tcm-tbl th{background:#f5f3ff;font-weight:600;color:#4a4060}
+.tcm-cluster{margin:10px 0}
+.tcm-cluster-h{font-size:12.5px;font-weight:600;color:#3a3260;margin:8px 0 2px}
+.tcm-prim{font-size:12.5px;margin:4px 0;color:#333}
+.tcm-must{font-size:12px;font-weight:600;color:#b0321f;margin:10px 0 4px}
+.tcm-ul{margin:4px 0 4px 18px;padding:0}
+.tcm-ul li{font-size:12px;margin:2px 0;color:#444}
 </style>
 </head>
 <body>
@@ -118,6 +133,7 @@
   <br><small id="storageInfo">0 days recorded</small>
 </div>
 
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
 <script>
 // ── Phase calculator ──
 function calcCycleDay() {
@@ -306,12 +322,14 @@ function submitCheckin() {
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(r => r.ok?r.json():Promise.reject())
     .then(r => { if(r.error){showInlineError(r.error);return;} showResult(r); save({user_id:name,date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
-    .catch(() => {
+    .catch(async () => {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
       save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
       const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj, r, sl, tags);
       const supabaseData2 = {date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,mood_tags:tags,sleep_hours:sl,score:sc.score,phase:sc.phase,autonomic_age:aa.age,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr_peak:pk||null,hrr_1min:r1||null}; saveToSupabase(supabaseData2);
-      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:tcm0,offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
+      let offlineReport = null;
+      if (engineReady && pyodide) { try { offlineReport = await computeRichReportPyodide(h, r, sl, tags); } catch(e){ console.warn(e); } }
+      showResult({score:sc.score,level:sc.level,label:sc.level,takeaway:sc.takeaway,phase:sc.phase,sub_scores:{hrv_baseline:Math.round(sc.hrvScore),recovery:60,tcm_balance:78,phase_adjustment:sc.phaseAdj},tcm:tcm0,tcm_report:offlineReport,offline:true,autonomic_age:aa.age,autonomic_age_text:aa.text,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr:hrr});
       renderHistory(); renderChart();
     })
     .finally(() => { btn.disabled=false; btn.textContent='Submit → Get Score'; });
@@ -362,6 +380,7 @@ function showResult(r) {
     if (t.phlegm_turbidity !== undefined) html += '<tr><td><strong>Phlegm turbidity</strong> (痰气互结)</td><td style="text-align:right">' + (t.phlegm_turbidity||0) + '/100</td></tr>';
     if (t.yin_yang_balance !== undefined) html += '<tr><td><strong>Yin-yang balance</strong> (阴阳平衡)</td><td style="text-align:right">' + (t.yin_yang_balance||0) + '/100</td></tr>';
     html += '</table>';
+    if (r.tcm_report) { html += renderTCMReport(r.tcm_report, 'backend'); }
     if (r.offline) html += '<br><br><em>Offline preview. Run <code>python server.py</code> for full TCM diagnostics and trend.</em>';
     document.getElementById('detail').innerHTML = html;
     document.getElementById('result').classList.add('show');
@@ -427,6 +446,82 @@ function computeTCMOffline(rmssd, phase, phaseAdj, rhr, sleepHrs, moodTags) {
     phlegm_turbidity: Math.round(phlegm_score * 10) / 10,
     yin_yang_balance: Math.round(balance * 10) / 10
   };
+}
+
+// ── 富报告渲染（89 证型 TCM 报告层）──
+let pyodide = null, engineReady = false;
+const ENGINE_FILES = ["tcm_theory.py","tcm_hrv_estimator.py","tcm_ontology.py","tcm_report.py"];
+
+async function bootEngine(){
+  try{
+    pyodide = await loadPyodide();
+    for (const f of ENGINE_FILES){
+      const code = await (await fetch("./engine/" + f)).text();
+      pyodide.FS.writeFile("/" + f, code);
+    }
+    engineReady = true;
+    const badge = document.getElementById('statusBadge');
+    if (badge) badge.textContent = "Local mode — 浏览器内引擎就绪 ✅";
+  }catch(e){
+    console.warn("Pyodide engine load failed:", e);
+    const badge = document.getElementById('statusBadge');
+    if (badge) badge.textContent = "Local mode — 引擎未加载（仅基础预览）";
+  }
+}
+bootEngine();
+
+async function computeRichReportPyodide(hrv, rhr, sleep, tags){
+  if (!pyodide || !engineReady) return null;
+  pyodide.globals.set("hrv", hrv);
+  pyodide.globals.set("rhr", rhr);
+  pyodide.globals.set("sleep", sleep == null ? 0.0 : sleep);
+  pyodide.globals.set("tagstr", tags || "");
+  const out = await pyodide.runPythonAsync(`
+import json
+from tcm_hrv_estimator import HRVFeatures, estimate_tcm
+from tcm_report import build_tcm_report, report_to_dict
+feats = HRVFeatures(resting_rmssd=float(hrv), normalized_hrv=0.0,
+                   recovery_classification="normal", recovery_rate=None,
+                   resting_hr=(float(rhr) if rhr else None),
+                   sleep_hours=(float(sleep) if sleep else None),
+                   mood_tags=[t for t in tagstr.split(",") if t])
+json.dumps(report_to_dict(build_tcm_report(estimate_tcm(feats))))
+`);
+  try { return JSON.parse(out); } catch(e){ return null; }
+}
+
+function evCN(e){ return ({weak:"弱",moderate:"中",strong:"强",none:"无"})[e] || e; }
+
+function renderTCMReport(rd, source){
+  if (!rd) return "";
+  const tag = source === "backend" ? "基于完整 Python 引擎" : "离线引擎计算（浏览器内真实引擎，数据不出机）";
+  let h = '<div class="tcm-rep">';
+  h += '<div class="tcm-title">中医证候倾向性评估（基于 HRV）<span class="tcm-src">'+tag+'</span></div>';
+  h += '<div class="tcm-disc">⚠️ '+(rd.disclaimer||'本输出为基于 HRV 的中医证候倾向性评估，非中医诊断/辨证结论。')+'</div>';
+  h += '<table class="tcm-tbl"><tr><th>证候轴</th><th>分数</th><th>证据</th></tr>';
+  (rd.scored_axes||[]).forEach(a => { h += '<tr><td>'+a.name_cn+'</td><td>'+(+a.score).toFixed(1)+'</td><td>'+evCN(a.evidence)+'</td></tr>'; });
+  h += '</table>';
+  if (rd.primary) h += '<div class="tcm-prim">主证倾向：'+rd.primary+'</div>';
+  if (rd.secondary && rd.secondary.length) h += '<div class="tcm-prim">兼证（复合证型）：'+rd.secondary.join('、')+'</div>';
+  (rd.family_clusters||[]).forEach(c => {
+    h += '<div class="tcm-cluster"><div class="tcm-cluster-h">'+c.label+'（触发 '+ (+c.trigger_score).toFixed(1) +'）</div>';
+    h += '<table class="tcm-tbl"><tr><th>证型</th><th>HRV可提示</th><th>需面诊</th><th>证据</th><th>文献</th></tr>';
+    c.members.forEach(m => {
+      const hrvf = m.hrv_detectable ? '✅' : '—';
+      const clinic = m.hrv_detectable ? '—' : '⚠️ 必须';
+      const cited = m.has_citations ? '✅' : '—';
+      h += '<tr><td>'+m.name_cn+'</td><td>'+hrvf+'</td><td>'+clinic+'</td><td>'+evCN(m.evidence)+'</td><td>'+cited+'</td></tr>';
+    });
+    h += '</table></div>';
+  });
+  const must = (rd.family_clusters||[]).map(c => ({label:c.label, ms:c.members.filter(m=>!m.hrv_detectable)})).filter(x=>x.ms.length);
+  if (must.length){
+    h += '<div class="tcm-must">⚠️ 必须面诊鉴别（HRV 无法区分，按家族归类）：</div><ul class="tcm-ul">';
+    must.forEach(x => { h += '<li><b>'+x.label+'</b>：'+x.ms.map(m=>m.name_cn).join('、')+'</li>'; });
+    h += '</ul>';
+  }
+  h += '</div>';
+  return h;
 }
 
 // ── Init ──

@@ -313,7 +313,7 @@ class HiddenChainScorer:
         resting_rmssd: float,
         normalized_hrv: float,
         recovery_classification: str,  # "fast" / "normal" / "slow"
-        recovery_rate: float,
+        recovery_rate: float | None,  # None = 无恢复测量（不微调）
         qi_blood: float,
         liver_depression: float,
         spleen_deficiency: float,
@@ -343,8 +343,8 @@ class HiddenChainScorer:
         # —— 子维度 2：恢复指数 (0-100) ——
         recovery_map = {"fast": 85, "normal": 60, "slow": 35}
         recovery_index = recovery_map.get(recovery_classification, 50)
-        # 恢复速率微调
-        if recovery_rate > 0:
+        # 恢复速率微调（无恢复测量 recovery_rate=None 时不调整）
+        if recovery_rate is not None and recovery_rate > 0:
             recovery_index = min(100, recovery_index + int(recovery_rate * 2))
 
         # —— 子维度 3：中医平衡 (0-100) ——
