@@ -30,3 +30,9 @@ data/*.db
 *.env.local
 node_modules/
 autonomic_age_dataset.csv
+
+# WorkBuddy (local only — never commit)
+.workbuddy/
+
+# Python test cache
+tests/__pycache__/
