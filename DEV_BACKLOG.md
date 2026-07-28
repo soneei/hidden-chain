@@ -16,9 +16,10 @@
 - [x] 2026-07-28 补 `tests/test_hrv_engine.py`（核心引擎覆盖，新增 23 用例），并接入**覆盖率门槛**：`pyproject.toml` 配 `[tool.coverage]`（source=src，omit data_loader/device_adapters 两个 pandas/设备 I/O 适配层，`fail_under=80`）；`[tool.pytest.ini_options]` 设 `python_files=test_*.py`（排除 smoke_test.py 走 pytest 收集）。核心引擎覆盖率 85%（hidden_chain_score 80% / hrv_engine 90%），58 passed，达标。CI `unit-tests` job 改跑 `pytest tests/ --cov=src`。
 - [x] 2026-07-28 新增 `tools/ci_status_report.py`：本地镜像 CI 四关、`subprocess` 跑 `py_compile`/`smoke_test`/`mypy`/`pytest --cov`，解析通过率与覆盖率，输出可读 Markdown 状态报告。每日自动化步骤 8.5 在跑完迭代后调用它，把报告写入 `.workbuddy/ci_reports/YYYY-MM-DD.md`（本地，不推送），让用户无需登录 GitHub 即可看当日门禁状态。
 - [x] 2026-07-28 立 **中医症型理论层** `research/013_tcm_syndrome_theory.md`：以《中医诊断学》《中医基础理论》规划教材为权威源，定义 5 证型（气血不足/肝郁气滞/脾虚/痰气互结/阴阳平衡）的辨证要点+舌脉+病因病机+鉴别诊断，补八纲→脏腑→气血津液→病因框架与复合证型（肝郁脾虚/心脾两虚/痰气郁结/肝肾阴虚），并明确 HRV 仅作 proxy（证据分级 强/中/弱）、输出须称「证候倾向性评估」、非诊断红线。引擎重构的权威源已就位（用户选择：先立理论层文档，暂不改动引擎代码）。
+- [x] 2026-07-28 **TCM 引擎重构落地**（消费 013）：拆分 `tcm_theory.py` + `tcm_hrv_estimator.py`，`hrv_engine.TCMMetrics` 改为 `TCMAssessment` 别名，输出升级为主证/兼证/证据等级/非诊断声明，新增 `tests/test_tcm_estimator.py`。详见上方待办首条 `[x]`。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
-- [ ] [smoke] **TCM 引擎重构（消费理论层 `research/013`）**：把 `src/hrv_engine.py::TCMMetrics.from_hrv` 拆为 `tcm_theory`（纯理论、零 HRV，消费 013 第 3/4 节证型目录 + 辨证要点 + 复合证型）与 `tcm_hrv_estimator`（消费 research/006、011，HRV 特征作 proxy、带证据等级 + 非诊断声明「证候倾向性评估」）。输出由 5 独立分数改为「主证 + 兼证 + 证据等级 + 覆盖缺失声明」。验收：新增 test 断言 estimator 输出结构与非诊断文案；过 CI 四关（py_compile / smoke / pytest-cov≥80% / mypy）。
+- [x] 2026-07-28 **TCM 引擎重构（消费理论层 `research/013`）**：将 `TCMMetrics` 拆为 `tcm_theory.py`（纯理论零 HRV：证型目录/辨证要点/舌脉/八纲/复合证型/证据分级/非诊断声明）与 `tcm_hrv_estimator.py`（HRV proxy + 证据等级 + 非诊断声明）。`hrv_engine` 以 `TCMAssessment` 别名保留 `TCMMetrics`，5 主轴分数算法不变（兼容现有测试），新增 primary_syndrome/secondary_syndromes（肝郁脾虚等复合证型）/evidence/disclaimer。新增 `tests/test_tcm_estimator.py`（9 用例验证结构与合规文案）。CI 四关全绿、67 passed、覆盖率 87%。
 - [ ] [smoke] 增强导出/CSV：补齐 `exportCSV` 相关导出路径与 IndexedDB store 名一致性（上次已修 checkins→logs），新增导出单测。验收：smoke 覆盖导出函数。
 - [ ] [smoke] 为 `hrv_engine` 周期校准 + `hidden_chain_score` 评分补充 pytest 用例（覆盖 ScoreLevel 边界、周期相位分支）。
 - [ ] [manual] 修复 Web 表单"提交无响应"：定位 `server.py` 提供的表单源，修复 submit 处理器/JS 事件，保证写入 IndexedDB。验收：需人工浏览器验证。

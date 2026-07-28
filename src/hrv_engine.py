@@ -24,6 +24,11 @@ from hidden_chain_score import (
     CyclePhase, TrendAnalysis,
 )
 
+# 中医辨证：理论层(tcm_theory) 与 HRV 代理层(tcm_hrv_estimator) 已分离。
+# TCMMetrics 现为 TCMAssessment 的别名（向后兼容 5 字段 + 新增主证/兼证/证据）。
+# 重构详见 research/013_tcm_syndrome_theory.md。
+from tcm_hrv_estimator import TCMAssessment as TCMMetrics
+
 # ──────────────────────────────────────────────
 # 第 1 层 & 第 2 层：HRV 数据记录
 # ──────────────────────────────────────────────
@@ -126,165 +131,16 @@ class RecoveryMetrics:
 
 
 # ──────────────────────────────────────────────
+# ──────────────────────────────────────────────
 # 第 4 层：中医映射
 # ──────────────────────────────────────────────
+# TCMMetrics 已迁移至 tcm_hrv_estimator.TCMAssessment（见顶部 import 别名）。
+# 理论层（证型定义/辨证要点/舌脉/八纲/复合证型）在 tcm_theory.py，
+# 代理层（HRV→证候倾向性）在 tcm_hrv_estimator.py，二者分离便于审计。
+# 五主轴分数算法与原实现保持一致（Shaffer 2017 / NRICM 2010 /
+# Olivera-Toro 2019 / Yang 2008），新增 primary_syndrome / secondary_syndromes
+# （肝郁脾虚等复合证型）/ evidence（证据等级）/ disclaimer（非诊断声明）。
 
-@dataclass
-class TCMMetrics:
-    """中医证型评分"""
-    qi_blood_deficiency: float    # 气血不足评分 0-100
-    liver_depression: float       # 肝郁气滞评分 0-100
-    spleen_deficiency: float      # 脾虚评分 0-100
-    phlegm_turbidity: float       # 痰气互结评分 0-100
-    yin_yang_balance: float       # 阴阳平衡指数 0-100
-
-    @classmethod
-    def from_hrv(cls, resting_hrv: float, normalized_hrv: float,
-                 recovery: RecoveryMetrics, resting_hr: float | None = None,
-                 sleep_hours: float | None = None,
-                 mood_tags: list[str] | None = None) -> "TCMMetrics":
-        """从多维度数据映射到中医证型评分。
-
-        ------------------------------------------------
-        映射逻辑（五篇论文支撑）：
-        ------------------------------------------------
-        ① 气血不足 — Shaffer 2017 (N=21,438): RMSSD 低于同龄正常值 = 气血基础薄弱。
-           辅助：静息心率偏高（心跳偏快→阴虚/血虚倾向）、睡眠不足→气血生成时间不够。
-        ② 肝郁气滞 — NRICM 2010: 肝的疏泄功能反映在 vagal reactivation 速度上。
-           肝郁型患者 vagal 下降是所有证型中最严重的。恢复慢或 HRV 剧烈波动 =
-           肝主疏泄受阻。辅助：烦躁标签→情志因素直指肝郁。
-        ③ 脾虚 — Olivera-Toro 2019 (n=104): 脾虚→SDNN↓17%, HF↓14%, LF/HF↑22%,
-           疲劳↑21%, 注意力↓16%。恢复速率慢 + 疲惫标签→脾主运化不足。
-        ④ 痰气互结 — Yang 2008: 肝郁痰阻型 vagal 下降最严重。
-           周期校准后仍异常（normalized_hrv 偏离 0）→ 不是单纯的生理周期波动。
-        ⑤ 阴阳平衡 — 综合评分。前四项越高，平衡越差。
-        ------------------------------------------------
-        """
-
-        # ── ① 气血不足 (Qi-Blood Deficiency) ──
-        # 主信号：RMSSD 低于年龄-正常基线
-        # 正常基线参考 Shaffer 2017: 20s=55ms, 30s=48ms, 40s=40ms, 50s=32ms, 60s=28ms
-        qi_raw: float = 0.0
-        if resting_hrv <= 0:
-            qi_raw = 90
-        elif resting_hrv >= 55:
-            qi_raw = 0
-        elif resting_hrv >= 48:
-            qi_raw = (55 - resting_hrv) / 7 * 40       # 48→0, 4:
-        elif resting_hrv >= 40:
-            qi_raw = 40 + (48 - resting_hrv) / 8 * 30  # 40→40, 48→40
-        elif resting_hrv >= 28:
-            qi_raw = 70 + (40 - resting_hrv) / 12 * 20 # 28→70, 40→70
-        else:
-            qi_raw = 90 + (28 - resting_hrv) / 8 * 10  # <28→90+
-
-        # 辅助信号：静息心率偏高（心跳快→阴虚/血虚倾向）
-        rhr_bonus = 0
-        if resting_hr is not None:
-            if resting_hr > 80:
-                rhr_bonus = 20
-            elif resting_hr > 70:
-                rhr_bonus = 10
-
-        # 辅助信号：睡眠不足→气血生成时间不够
-        sleep_bonus = 0
-        if sleep_hours is not None and sleep_hours > 0 and sleep_hours < 6:
-            sleep_bonus = 15
-
-        qi_score = min(100, qi_raw + rhr_bonus + sleep_bonus)
-
-        # ── ② 肝郁气滞 (Liver Qi Stagnation) ──
-        # 主信号：恢复速度慢（NRICM 2010: 肝郁型 vagal 下降最严重）
-        liver_score = 0
-        if recovery.classification == "slow":
-            liver_score += 65
-        elif recovery.classification == "normal":
-            # Normal recovery but HRV is still unstable → mild liver involvement
-            if normalized_hrv is not None and abs(normalized_hrv) > 0.5:
-                liver_score += 35
-
-        # 辅助信号：恢复速率
-        if recovery.recovery_rate is not None:
-            if recovery.recovery_rate < 1:
-                liver_score += 25  # Very slow recovery
-            elif recovery.recovery_rate < 2:
-                liver_score += 15  # Below average recovery
-
-        # 辅助信号：烦躁/暴躁标签→情志因素直指肝郁（NRICM 2010 肝郁化火型）
-        if mood_tags and ("irritable" in mood_tags or "anxious" in mood_tags):
-            liver_score += 15
-
-        # 辅助信号：睡眠不足→加重肝郁（肝藏魂，不寐则魂不安）
-        if sleep_hours is not None and sleep_hours > 0 and sleep_hours < 5:
-            liver_score += 10
-
-        liver_score = min(100, liver_score)
-
-        # ── ③ 脾虚 (Spleen Deficiency) ──
-        # 主信号：恢复速率慢→脾主运化不足（Olivera-Toro 2019: 脾虚→HRV↓17%）
-        spleen_raw: float = 0.0
-        if recovery.recovery_rate is not None:
-            if recovery.recovery_rate <= 0:
-                spleen_raw = 65
-            elif recovery.recovery_rate < 2:
-                spleen_raw = 55
-            elif recovery.recovery_rate < 4:
-                spleen_raw = 40 - (recovery.recovery_rate - 2) * 15
-            elif recovery.recovery_rate < 6:
-                spleen_raw = 25 - (recovery.recovery_rate - 4) * 10
-            else:
-                spleen_raw = 0
-
-        # 辅助信号：疲惫/脑雾标签→脾虚的典型表现（Olivera-Toro: 疲劳↑21%, 注意力↓16%）
-        if mood_tags:
-            if "exhausted" in mood_tags:
-                spleen_raw += 20
-            if "brain_fog" in mood_tags:
-                spleen_raw += 15
-
-        # 辅助信号：HRV 偏低 + RHR 偏高 同时出现 → 脾虚（气血生化之源不足）
-        if resting_hrv < 35 and resting_hr is not None and resting_hr > 65:
-            spleen_raw += 15
-
-        spleen_score = min(100, spleen_raw)
-
-        # ── ④ 痰气互结 (Phlegm Turbidity) ──
-        # 定义：周期校准后仍异常（normalized HRV 偏离 0 较多）
-        # Yang 2008: 肝郁痰阻型 vagal 下降是所有证型中最严重的
-        nh = normalized_hrv if normalized_hrv is not None else 0
-        if abs(nh) <= 1:
-            phlegm_score: float = 0.0
-        elif abs(nh) <= 2:
-            phlegm_score = abs(nh) * 30  # 1→30, 2→60
-        elif abs(nh) <= 4:
-            phlegm_score = 60 + (abs(nh) - 2) * 15  # 2→60, 4→90
-        else:
-            phlegm_score = min(100, 90 + (abs(nh) - 4) * 5)
-
-        # 辅助信号：脑雾+疲惫同时出现→痰浊蒙蔽清窍
-        if mood_tags and "brain_fog" in mood_tags and "exhausted" in mood_tags:
-            phlegm_score = min(100, phlegm_score + 15)
-
-        # ── ⑤ 阴阳平衡 (Yin-Yang Balance) ──
-        # 四个维度的加权反向——哪个维度高，平衡就低
-        from_imbalance = (
-            qi_score * 0.30  +   # 气血是基础
-            liver_score * 0.25 +  # 肝郁直接影响全身气机
-            spleen_score * 0.25 + # 脾是后天之本
-            phlegm_score * 0.20   # 痰浊是病理产物
-        )
-        balance = max(0, min(100, 100 - from_imbalance))
-
-        return cls(
-            qi_blood_deficiency=round(qi_score, 1),
-            liver_depression=round(liver_score, 1),
-            spleen_deficiency=round(spleen_score, 1),
-            phlegm_turbidity=round(phlegm_score, 1),
-            yin_yang_balance=round(balance, 1),
-        )
-
-
-# ──────────────────────────────────────────────
 # 第 5 层：调节指数输出
 # ──────────────────────────────────────────────
 
