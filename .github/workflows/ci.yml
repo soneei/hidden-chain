@@ -50,3 +50,21 @@ jobs:
       # Blocks the merge/push path on any type error in src/.
       - name: Run mypy on engine src/
         run: mypy src/
+
+  unit-tests:
+    name: Unit tests (pytest) — gate 3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pytest
+        run: pip install pytest
+      # Behavioral regression suite. The founder N=1 case (research/009) is
+      # the validation oracle. Any score-threshold or autonomic-age drift
+      # fails the build instead of shipping silently.
+      - name: Run pytest suite
+        run: pytest tests/test_engine.py -q
