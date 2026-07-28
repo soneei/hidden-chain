@@ -36,3 +36,6 @@ autonomic_age_dataset.csv
 
 # Python test cache
 tests/__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
