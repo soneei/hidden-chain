@@ -33,6 +33,7 @@ class EvidenceGrade(Enum):
     STRONG = "strong"      # multiple consistent peer-reviewed studies
     MODERATE = "moderate"  # one or two studies, or indirect but supported
     WEAK = "weak"          # theoretical / indirect only; low confidence
+    NONE = "none"          # theory-only; HRV cannot proxy this syndrome at all
 
 
 class SyndromeId(Enum):

@@ -17,6 +17,7 @@
 - [x] 2026-07-28 新增 `tools/ci_status_report.py`：本地镜像 CI 四关、`subprocess` 跑 `py_compile`/`smoke_test`/`mypy`/`pytest --cov`，解析通过率与覆盖率，输出可读 Markdown 状态报告。每日自动化步骤 8.5 在跑完迭代后调用它，把报告写入 `.workbuddy/ci_reports/YYYY-MM-DD.md`（本地，不推送），让用户无需登录 GitHub 即可看当日门禁状态。
 - [x] 2026-07-28 立 **中医症型理论层** `research/013_tcm_syndrome_theory.md`：以《中医诊断学》《中医基础理论》规划教材为权威源，定义 5 证型（气血不足/肝郁气滞/脾虚/痰气互结/阴阳平衡）的辨证要点+舌脉+病因病机+鉴别诊断，补八纲→脏腑→气血津液→病因框架与复合证型（肝郁脾虚/心脾两虚/痰气郁结/肝肾阴虚），并明确 HRV 仅作 proxy（证据分级 强/中/弱）、输出须称「证候倾向性评估」、非诊断红线。引擎重构的权威源已就位（用户选择：先立理论层文档，暂不改动引擎代码）。
 - [x] 2026-07-28 **TCM 引擎重构落地**（消费 013）：拆分 `tcm_theory.py` + `tcm_hrv_estimator.py`，`hrv_engine.TCMMetrics` 改为 `TCMAssessment` 别名，输出升级为主证/兼证/证据等级/非诊断声明，新增 `tests/test_tcm_estimator.py`。详见上方待办首条 `[x]`。
+- [x] 2026-07-28 **TCM 证候本体织网（research/014）**：新建 `src/tcm_ontology.py`（纯理论零 HRV），按八纲/五脏六腑/六淫病因三轴正交组织 **89 条临床常见证型**目录（脏腑辨证 ~52 / 气血津液 ~17 / 外感六淫卫气营血六经 ~17），每条含辨证要点+舌脉+病因病机+八纲归属+脏腑归属+病因+HRV可测性。新增 `EvidenceGrade.NONE`、`validate_catalog()`（查重/受控词表/HRV可测→证据一致）、三轴查询 helper、`catalog_stats()`。新增 `tests/test_tcm_ontology.py`（12 用例，含"HRV 可测为极小子集(5–35)"合规断言）。**关键红线**：89 条中仅约 17 条 `hrv_detectable=True`（确有自主神经证据），其余 `hrv_detectable=False` 仅供审计/报告引用，引擎绝不据 HRV 打分。四关全绿、80 passed、覆盖率 89%。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [x] 2026-07-28 **TCM 引擎重构（消费理论层 `research/013`）**：将 `TCMMetrics` 拆为 `tcm_theory.py`（纯理论零 HRV：证型目录/辨证要点/舌脉/八纲/复合证型/证据分级/非诊断声明）与 `tcm_hrv_estimator.py`（HRV proxy + 证据等级 + 非诊断声明）。`hrv_engine` 以 `TCMAssessment` 别名保留 `TCMMetrics`，5 主轴分数算法不变（兼容现有测试），新增 primary_syndrome/secondary_syndromes（肝郁脾虚等复合证型）/evidence/disclaimer。新增 `tests/test_tcm_estimator.py`（9 用例验证结构与合规文案）。CI 四关全绿、67 passed、覆盖率 87%。
@@ -26,5 +27,8 @@
 - [ ] [manual] 修复日期选择器不收起（date picker 不关闭）。需人工浏览器验证。
 - [ ] [manual] 修复心情标签(mood tag)点击不生效。需人工浏览器验证。
 - [ ] [manual] 部署到 Render.com 提供公网访问：编写 render 部署配置 + 启动说明，本地可起 `server.py` 自检。需凭据/环境变量，标注阻塞项。
+
+- [ ] [manual] 请执业中医师逐条审校 `tcm_ontology.py` 的 89 条辨证要点/舌脉/病因病机（尤其复合证型与外感传变）。验收：需人工，自动化应 skip。
+- [ ] [manual] 报告层：基于用户 5 轴 HRV 倾向，用 `catalog_by_organ/by_principle/by_etiology` 高亮"相关但 HRV 不可测"的证型家族，显式标注需面诊。
 
 ## 阻塞 / 跳过记录（自动化在此追加 `[skip]` 原因）
