@@ -151,9 +151,11 @@ def test_tcm_mood_tags_affect_scores():
 
 
 def test_tcm_resting_hr_bonus():
-    low = TCMMetrics.from_hrv(resting_hrv=40, normalized_hrv=0.0,
+    # 解饱和后，心率/睡眠奖励分仅在 rmssd 处于中等区间(qi_raw<70)时叠加；
+    # 此处用 rmssd=46(qi_raw≈47.5)落在生效区间，验证高静息心率→更高气血不足分。
+    low = TCMMetrics.from_hrv(resting_hrv=46, normalized_hrv=0.0,
                               recovery=_recovery("fast", rate=5.0))
-    high = TCMMetrics.from_hrv(resting_hrv=40, normalized_hrv=0.0,
+    high = TCMMetrics.from_hrv(resting_hrv=46, normalized_hrv=0.0,
                                recovery=_recovery("fast", rate=5.0), resting_hr=85)
     assert high.qi_blood_deficiency > low.qi_blood_deficiency
 

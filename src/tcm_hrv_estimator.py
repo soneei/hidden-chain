@@ -104,14 +104,16 @@ def _qi_score(f: HRVFeatures) -> float:
         qi_raw = 90 + (28 - rh) / 8 * 10
 
     rhr_bonus = 0
-    if f.resting_hr is not None:
+    # 解饱和：rmssd 已提示重度不足(qi_raw>=70)时，心率/睡眠奖励不再叠加——
+    # 否则必封顶 100，永远压过更具体的肝郁/脾虚轴，掩盖真实倾向。
+    if qi_raw < 70 and f.resting_hr is not None:
         if f.resting_hr > 80:
             rhr_bonus = 20
         elif f.resting_hr > 70:
             rhr_bonus = 10
 
     sleep_bonus = 0
-    if f.sleep_hours is not None and f.sleep_hours > 0 and f.sleep_hours < 6:
+    if qi_raw < 70 and f.sleep_hours is not None and f.sleep_hours > 0 and f.sleep_hours < 6:
         sleep_bonus = 15
 
     return min(100.0, qi_raw + rhr_bonus + sleep_bonus)
@@ -187,6 +189,13 @@ def _balance_score(qi: float, liver: float, spleen: float, phlegm: float) -> flo
 # ──────────────────────────────────────────────
 # 主入口：HRV features → TCMAssessment
 # ──────────────────────────────────────────────
+# 主证命名阈值：最高病证轴分数低于此值时不命名任何单证（返回 BALANCED）。
+# 校准依据（2026-07-28 合成数据自检）："健康"画像各轴在 22-58 区间波动，
+# 若无阈值，健康人 5/7 天会被贴上主证标签；50 作为"确有 HRV 可提示的
+# 明确病证倾向"切点，低于它视为 HRV 未显示明确倾向。
+PRIMARY_MIN_SCORE = 50.0
+
+
 def estimate_tcm(f: HRVFeatures) -> TCMAssessment:
     qi = round(_qi_score(f), 1)
     liver = round(_liver_score(f), 1)
@@ -203,24 +212,22 @@ def estimate_tcm(f: HRVFeatures) -> TCMAssessment:
         SyndromeId.YIN_YANG: balance,
     }
 
-    # 主证 = 五个单证轴里分数最高者（YIN_YANG 为平衡指数，不参与"证"排名，
-    # 主证只在四个病证轴中选；YIN_YANG 仅作平衡参考）
+    # 主证 = 四个病证轴里分数最高者（YIN_YANG 为平衡指数，不参与"证"排名，
+    # 仅作平衡参考）。低于 PRIMARY_MIN_SCORE 则不命名任何单证。
     disorder_axes = [SyndromeId.QI_BLOOD, SyndromeId.LIVER_QI,
                     SyndromeId.SPLEEN, SyndromeId.PHLEGM]
-    primary = max(disorder_axes, key=lambda sid: axis_scores[sid])
+    top_axis = max(disorder_axes, key=lambda sid: axis_scores[sid])
+    primary = top_axis if axis_scores[top_axis] >= PRIMARY_MIN_SCORE \
+        else SyndromeId.BALANCED
 
     # 兼证（复合证型）识别，依据 tcm_theory.COMPOSITE_SYNDROMES
+    # 注：肝肾阴虚已移出自动判定（HRV 无法代理肾阴虚），故循环内仅剩
+    # 肝郁脾虚 / 心脾两虚 / 痰气郁结 三类可 HRV 辨别的复合证型。
     secondary: list[SyndromeId] = []
     for rule in COMPOSITE_SYNDROMES:
         comp_scores = [axis_scores.get(c, 0.0) for c in rule.components]
-        if rule.id == SyndromeId.LIVER_KIDNEY_YIN:
-            # 特殊规则：阴阳平衡 ≤ (100 - threshold)
-            if axis_scores[SyndromeId.LIVER_QI] >= rule.threshold and \
-               axis_scores[SyndromeId.YIN_YANG] <= (100 - rule.threshold):
-                secondary.append(rule.id)
-        else:
-            if all(s >= rule.threshold for s in comp_scores):
-                secondary.append(rule.id)
+        if all(s >= rule.threshold for s in comp_scores):
+            secondary.append(rule.id)
 
     # 证据等级：取该证 type 的代理里的最低等级（短板原则）
     evidence: dict[SyndromeId, EvidenceGrade] = {}

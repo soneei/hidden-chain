@@ -42,7 +42,7 @@ def test_primary_is_a_disorder_axis_not_balance():
     a = estimate_tcm(_feat())  # all low → primary picks first max axis
     assert a.primary_syndrome in (
         SyndromeId.QI_BLOOD, SyndromeId.LIVER_QI,
-        SyndromeId.SPLEEN, SyndromeId.PHLEGM,
+        SyndromeId.SPLEEN, SyndromeId.PHLEGM, SyndromeId.BALANCED,
     )
     assert a.primary_syndrome != SyndromeId.YIN_YANG
 
@@ -72,12 +72,27 @@ def test_composite_phlegm_qi_stagnation():
     assert SyndromeId.PHLEGM_QI in a.secondary_syndromes
 
 
-def test_composite_liver_kidney_yin_deficiency():
-    # all axes high → balance drops, liver high → 肝肾阴虚
+def test_engine_does_not_assert_kidney_yin():
+    # 肝肾阴虚依赖肾阴虚特异性表现（五心烦热/盗汗/腰膝酸软/舌红少苔），
+    # HRV 无法代理（无独立肾轴信号）。据合规红线，引擎即使各轴偏高也
+    # 不得自动断言该证型——它仅保留于本体供报告/面诊参考。
     a = estimate_tcm(_feat(rmssd=0, norm=3.0, cls="slow", rate=0.0))
     assert a.liver_depression >= 40
     assert a.yin_yang_balance <= 60
-    assert SyndromeId.LIVER_KIDNEY_YIN in a.secondary_syndromes
+    assert SyndromeId.LIVER_KIDNEY_YIN not in a.secondary_syndromes
+
+
+def test_primary_below_threshold_is_balanced():
+    # 各病证轴分数均低于 PRIMARY_MIN(50) → 不命名单证，返回 BALANCED 哨兵
+    a = estimate_tcm(_feat(rmssd=55, norm=0.0, cls="normal", rate=4.0, hr=60, sleep=8))
+    assert a.primary_syndrome == SyndromeId.BALANCED
+
+
+def test_qi_score_not_pinned_at_100():
+    # 历史上 rmssd 偏低(25) + 高心率(82) + 短睡(5h) 会把气血不足恒封顶 100，
+    # 淹没更具体的肝郁/脾虚轴。解饱和后基值>=70 不再叠加奖励分，不应恒=100。
+    a = estimate_tcm(_feat(rmssd=25, norm=0.0, cls="normal", rate=4.0, hr=82, sleep=5))
+    assert 0.0 < a.qi_blood_deficiency < 100.0
 
 
 def test_evidence_grades_present():

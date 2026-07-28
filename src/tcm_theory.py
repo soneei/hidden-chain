@@ -44,6 +44,8 @@ class SyndromeId(Enum):
     SPLEEN = "spleen_deficiency"            # 脾虚
     PHLEGM = "phlegm_turbidity"             # 痰气互结
     YIN_YANG = "yin_yang_balance"           # 阴阳平衡 (composite index, 0-100, higher=better)
+    # ── 引擎哨兵：最高病证轴低于阈值时，不命名任何单证 ──
+    BALANCED = "balanced_no_tendency"       # 无明显单证倾向（HRV 未显示明确病证轴倾向）
     # ── 复合证型 (composite syndromes) ──
     LIVER_SPLEEN = "liver_spleen_deficiency"       # 肝郁脾虚
     HEART_SPLEEN = "heart_spleen_deficiency"       # 心脾两虚
@@ -230,14 +232,10 @@ COMPOSITE_SYNDROMES: list[CompositeRule] = [
         rule_cn="痰气互结 ≥ 阈值 且 肝郁气滞 ≥ 阈值 → 气郁痰凝",
         threshold=40.0,
     ),
-    CompositeRule(
-        id=SyndromeId.LIVER_KIDNEY_YIN,
-        name_cn="肝肾阴虚",
-        name_en="Liver-Kidney Yin Deficiency",
-        components=(SyndromeId.LIVER_QI, SyndromeId.YIN_YANG),
-        rule_cn="肝郁气滞 ≥ 阈值 且 阴阳平衡 ≤ (100-阈值) → 肝郁化火伤阴",
-        threshold=40.0,
-    ),
+    # 注：肝肾阴虚（Liver-Kidney Yin Deficiency）已从引擎自动判定中移除。
+    # 其诊断依赖肾阴虚特异性表现（五心烦热/盗汗/腰膝酸软/舌红少苔），HRV 无法
+    # 代理（无独立肾轴信号）。该证型仍保留于 tcm_ontology 本体供报告/面诊参考，
+    # 但引擎绝不据 HRV 自动断言，符合「HRV 只代理极小子集」的合规红线。
 ]
 
 # ──────────────────────────────────────────────

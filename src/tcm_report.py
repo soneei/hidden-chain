@@ -151,9 +151,12 @@ def build_tcm_report(assessment: TCMAssessment,
         scored_axes.append((name, axis_scores[sid], grade))
 
     primary_name = ""
-    spec0 = SYNDROME_SPECS.get(assessment.primary_syndrome)
-    if spec0:
-        primary_name = spec0.name_cn
+    if assessment.primary_syndrome == SyndromeId.BALANCED:
+        primary_name = "无明显单证倾向（HRV 各病证轴分数均较低）"
+    else:
+        spec0 = SYNDROME_SPECS.get(assessment.primary_syndrome)
+        if spec0:
+            primary_name = spec0.name_cn
 
     secondary_names: list[str] = []
     for s in assessment.secondary_syndromes:

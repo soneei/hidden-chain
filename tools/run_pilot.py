@@ -80,6 +80,8 @@ _COMPOSITE_NAME: dict[SyndromeId, str] = {
 
 def _syndrome_name(sid: SyndromeId) -> str:
     """Return Chinese name for any syndrome id (primary or composite)."""
+    if sid == SyndromeId.BALANCED:
+        return "无明显倾向"
     spec = SYNDROME_SPECS.get(sid)
     if spec:
         return spec.name_cn
@@ -160,7 +162,7 @@ def _render_summary(uid: str, assessments: list[TCMAssessment]) -> str:
         phlegm = f"{a.phlegm_turbidity:.0f}"
         balance = f"{a.yin_yang_balance:.0f}"
         spec = SYNDROME_SPECS.get(a.primary_syndrome)
-        primary = spec.name_cn if spec else _syndrome_name(a.primary_syndrome)
+        primary = _syndrome_name(a.primary_syndrome)
         lines.append(f"| Day {i} | {qi} | {liver} | {spleen} | {phlegm} | {balance} | {primary} |")
     lines.append("")
 
