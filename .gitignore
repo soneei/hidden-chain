@@ -34,6 +34,10 @@ autonomic_age_dataset.csv
 # WorkBuddy (local only — never commit)
 .workbuddy/
 
+# Pilot data + reports (local only, contains real user HRV)
+data/pilot/
+pilot_reports/
+
 # Python test cache
 tests/__pycache__/
 .pytest_cache/

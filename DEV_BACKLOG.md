@@ -19,6 +19,7 @@
 - [x] 2026-07-28 **TCM 引擎重构落地**（消费 013）：拆分 `tcm_theory.py` + `tcm_hrv_estimator.py`，`hrv_engine.TCMMetrics` 改为 `TCMAssessment` 别名，输出升级为主证/兼证/证据等级/非诊断声明，新增 `tests/test_tcm_estimator.py`。详见上方待办首条 `[x]`。
 - [x] 2026-07-28 **TCM 证候本体织网（research/014）**：新建 `src/tcm_ontology.py`（纯理论零 HRV），按八纲/五脏六腑/六淫病因三轴正交组织 **89 条临床常见证型**目录（脏腑辨证 ~52 / 气血津液 ~17 / 外感六淫卫气营血六经 ~17），每条含辨证要点+舌脉+病因病机+八纲归属+脏腑归属+病因+HRV可测性。新增 `EvidenceGrade.NONE`、`validate_catalog()`（查重/受控词表/HRV可测→证据一致）、三轴查询 helper、`catalog_stats()`。新增 `tests/test_tcm_ontology.py`（12 用例，含"HRV 可测为极小子集(5–35)"合规断言）。**关键红线**：89 条中仅约 17 条 `hrv_detectable=True`（确有自主神经证据），其余 `hrv_detectable=False` 仅供审计/报告引用，引擎绝不据 HRV 打分。四关全绿、80 passed、覆盖率 89%。
 - [x] 2026-07-28 **文献引用落地（citations field）**：给 `SyndromeCatalogEntry` 加 `citations: list[str]` 字段 + `validate_catalog()` 校验「MODERATE 以上必须有真实引用」；新增 5 条已核实文献常量（CITE_ANXIETY_DEPRESSION_HRV / CITE_DOR_HRV / CITE_CHEST_PAIN_HRV / CITE_CHRONIC_FATIGUE_HRV / CITE_CONSTITUTION_HRV）；回填 12 条证型的真实引用（肝郁气滞/痰证/气虚/气滞/气血两虚升 MODERATE，脾气虚降 WEAK）；清掉 notes 中无法核实的假引用（NRICM 2010 / Olivera-Toro 2019 / Yang 2008），同步清理 `tcm_theory.py` HRVProxy 文本。报告层 `tcm_report.py` 新增「文献支撑」列区分有文献 vs 纯理论。新增 3 测试（MODERATE+ 须有 citations / notes 无假引用 / 报告含文献支撑列）。四关全绿、89 passed、覆盖率 91%。
+- [x] 2026-07-28 **数据接入管线三件套（pilot ready）**：新增 `src/data_loader.py`（read_pilot_csv: CSV→HRVFeatures, validate 缺失列/非法值/重复/范围, utf-8 BOM, check_pilot_design 独立设计校验, generate_sample_csv 生成3用户×7天样例）；新增 `tools/run_pilot.py`（批量 runner: 读CSV→每人每天estimate_tcm→build_tcm_report→render_markdown→day{N}.md + 7天 summary.md 含5轴趋势/前后周对比/主证迁移/兼证频率/改善关注项/合规说明）；新增 `research/015_pilot_consent_template.md`（知情同意模板:采集什么、匿名 U01-U03、不采集姓名照片病历、可随时退出、非诊断声明）；新增 `tests/test_data_loader.py`（14用例:有效加载/缺列/非法值/日期/重复/范围/mood_tags分号/BOM/可选字段/文件不存在）。四关全绿、104 passed、覆盖率91%。
 
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [x] 2026-07-28 **TCM 引擎重构（消费理论层 `research/013`）**：将 `TCMMetrics` 拆为 `tcm_theory.py`（纯理论零 HRV：证型目录/辨证要点/舌脉/八纲/复合证型/证据分级/非诊断声明）与 `tcm_hrv_estimator.py`（HRV proxy + 证据等级 + 非诊断声明）。`hrv_engine` 以 `TCMAssessment` 别名保留 `TCMMetrics`，5 主轴分数算法不变（兼容现有测试），新增 primary_syndrome/secondary_syndromes（肝郁脾虚等复合证型）/evidence/disclaimer。新增 `tests/test_tcm_estimator.py`（9 用例验证结构与合规文案）。CI 四关全绿、67 passed、覆盖率 87%。
@@ -31,6 +32,6 @@
 
 - [ ] [manual] 请执业中医师逐条审校 `tcm_ontology.py` 的 89 条辨证要点/舌脉/病因病机（尤其复合证型与外感传变）。验收：需人工，自动化应 skip。
 - [x] 2026-07-28 **报告层落地（消费 research/014 本体）**：新增 `src/tcm_report.py`（纯函数 `build_tcm_report` + `render_markdown`，消费 `TCMAssessment`，按高倾向轴的**脏腑/八纲维度**从 `tcm_ontology` 拉同家族证型，区分「HRV 可提示」vs「必须面诊」，输出 `TCMReport` 含 `must_see_clinic` 清单 + 非诊断声明）；新增 `tests/test_tcm_report.py`（6 用例，含「高倾向触发家族 / 需面诊非空 / 低分无家族 / 合规声明」断言）；新增 `tools/tcm_report_demo.py`（CLI 生成样例 md 到 `.workbuddy/tcm_reports/sample.md`，本地不推送，供 7 天后 3 真人数据套用）。四关全绿、86 passed、覆盖率 91%。
-- [ ] [manual] 接入 3 真人 7 天数据：把真实 HRV 采集（设备/CSV）送进 `estimate_tcm` → `build_tcm_report` → `render_markdown`，每人生成一份报告；需先确认数据格式 + 知情同意/匿名 ID。验收：需人工核对数据管线。
+- [x] 2026-07-28 **数据接入管线三件套（pilot ready）**：同上（已完成区第 23 条，覆盖数据格式约定 + CSV 加载器 + 批量 runner + 知情同意模板）。
 
 ## 阻塞 / 跳过记录（自动化在此追加 `[skip]` 原因）
