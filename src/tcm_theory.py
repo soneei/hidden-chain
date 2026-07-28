@@ -132,7 +132,7 @@ SYNDROME_SPECS: dict[SyndromeId, SyndromeSpec] = {
             "与'肝阳上亢'鉴别：兼头胀痛、眩晕耳鸣、面红升火",
         ],
         hrv_proxy=[
-            HRVProxy("recovery_classification", "vagal reactivation 速度（肝郁型迷走神经下降最显著，NRICM 2010）", EvidenceGrade.MODERATE),
+            HRVProxy("recovery_classification", "vagal reactivation 速度（肝郁型迷走神经下降最显著，《不同中医证型焦虑抑郁病人心率变异特点》）", EvidenceGrade.MODERATE),
             HRVProxy("normalized_hrv", "HRV 剧烈波动→气机郁滞不稳", EvidenceGrade.MODERATE),
             HRVProxy("mood_tags", "烦躁/焦虑标签→情志因素直指肝郁", EvidenceGrade.WEAK),
         ],
@@ -156,7 +156,7 @@ SYNDROME_SPECS: dict[SyndromeId, SyndromeSpec] = {
             "与'脾阳虚'鉴别：兼畏寒肢冷、腹痛喜温喜按",
         ],
         hrv_proxy=[
-            HRVProxy("recovery_rate", "恢复速率慢→脾主运化不足（Olivera-Toro 2019：脾虚 HRV↓）", EvidenceGrade.MODERATE),
+            HRVProxy("recovery_rate", "恢复速率慢→脾主运化不足（间接证据：九种体质研究示气虚质 HRV 偏低）", EvidenceGrade.MODERATE),
             HRVProxy("mood_tags", "疲惫/脑雾标签→脾虚典型表现", EvidenceGrade.WEAK),
         ],
     ),
@@ -179,7 +179,7 @@ SYNDROME_SPECS: dict[SyndromeId, SyndromeSpec] = {
             "与单纯'脾虚生痰'鉴别：无明确气机郁滞与异物感",
         ],
         hrv_proxy=[
-            HRVProxy("normalized_hrv", "周期校准后仍显著偏离 0→非单纯生理周期波动（Yang 2008：肝郁痰阻 vagal 下降最重）", EvidenceGrade.MODERATE),
+            HRVProxy("normalized_hrv", "周期校准后仍显著偏离 0→非单纯生理周期波动（《不同中医证型焦虑抑郁病人心率变异特点》：肝郁痰阻型 vagal 下降最重）", EvidenceGrade.MODERATE),
             HRVProxy("mood_tags", "脑雾+疲惫同现→痰浊蒙蔽清窍", EvidenceGrade.WEAK),
         ],
     ),

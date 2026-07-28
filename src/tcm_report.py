@@ -81,6 +81,7 @@ class FamilyMember:
     hrv_detectable: bool
     evidence: EvidenceGrade
     note: str
+    has_citations: bool = False  # True if ontology entry has verified literature
 
 
 @dataclass
@@ -116,6 +117,7 @@ def _to_member(entry: SyndromeCatalogEntry) -> FamilyMember:
         hrv_detectable=entry.hrv_detectable,
         evidence=entry.evidence,
         note=note,
+        has_citations=bool(entry.citations),
     )
 
 
@@ -265,13 +267,14 @@ def render_markdown(report: TCMReport) -> str:
     for c in report.family_clusters:
         lines.append(f"### {c.label}（触发分数 {c.trigger_score:.1f}）")
         lines.append("")
-        lines.append("| 证型 | HRV 可提示 | 需面诊 | 证据等级 |")
-        lines.append("|---|---|---|---|")
+        lines.append("| 证型 | HRV 可提示 | 需面诊 | 证据等级 | 文献支撑 |")
+        lines.append("|---|---|---|---|---|")
         for m in c.members:
             hrv = "✅" if m.hrv_detectable else "—"
             clinic = "—" if m.hrv_detectable else "⚠️ 必须"
+            cited = "✅" if m.has_citations else "—"
             lines.append(
-                f"| {m.name_cn} | {hrv} | {clinic} | {_EVIDENCE_CN[m.evidence]} |"
+                f"| {m.name_cn} | {hrv} | {clinic} | {_EVIDENCE_CN[m.evidence]} | {cited} |"
             )
         lines.append("")
     lines.append("## 三、⚠️ 必须面诊鉴别的证型")

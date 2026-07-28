@@ -123,3 +123,20 @@ def test_every_entry_has_differentiation_points():
         assert e.differentiation_points, f"{e.id}: empty differentiation_points"
         assert e.tongue_pulse, f"{e.id}: empty tongue_pulse"
         assert e.patho, f"{e.id}: empty patho"
+
+
+def test_moderate_or_above_has_citations():
+    """MODERATE/STRONG evidence must carry verified citations."""
+    for e in TCM_SYNDROME_CATALOG.values():
+        if e.evidence in (EvidenceGrade.STRONG, EvidenceGrade.MODERATE):
+            assert e.citations, (
+                f"{e.id}: evidence={e.evidence.value} requires non-empty citations"
+            )
+
+
+def test_no_unverified_citation_references():
+    """Notes must not contain unverified citation names."""
+    forbidden = ["NRICM", "Olivera-Toro", "Yang 2008"]
+    for e in TCM_SYNDROME_CATALOG.values():
+        for f in forbidden:
+            assert f not in e.notes, f"{e.id}: notes still reference '{f}'"

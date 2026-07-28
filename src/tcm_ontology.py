@@ -37,6 +37,43 @@ from tcm_theory import EvidenceGrade
 
 
 # ──────────────────────────────────────────────
+# 已核实文献引用 (WebSearch verified, 2026-07-28)
+# ──────────────────────────────────────────────
+# These are REAL studies found via PubMed / CNKI search.
+# Entries with evidence >= MODERATE MUST cite at least one.
+# Format: "Title (source, year) — key finding"
+
+CITE_ANXIETY_DEPRESSION_HRV = (
+    "《不同中医证型焦虑抑郁病人心率变异特点》— "
+    "肝郁痰阻/心脾两虚/肝郁气滞三型 HRV 时域+频域显著低于对照(P<0.01)，"
+    "迷走神经指标下降最明显"
+)
+
+CITE_DOR_HRV = (
+    "《肾虚肝郁型卵巢储备功能减退患者心率变异性研究》"
+    "(陕西中医, 2025) — SDNN/RMSSD/PNN50/HF↓, LF/HF↑, 治疗后改善"
+)
+
+CITE_CHEST_PAIN_HRV = (
+    "《不同证型胸痹心痛患者心理状态与心率变异性分析》"
+    "(2026) — 肝郁气滞 pNN50/ASDNN↓; 痰瘀互结 SDNN/rMSSD/HF↓; "
+    "气滞血瘀 SDANN↓"
+)
+
+CITE_CHRONIC_FATIGUE_HRV = (
+    "《慢性疲劳基本中医证型与心率变异性相关性研究》"
+    "(天津中医药, 2017) — 肾气亏虚/肝郁化火两组 HRV 均降低; "
+    "肝郁化火组 LF/HF>2"
+)
+
+CITE_CONSTITUTION_HRV = (
+    "九种体质 HRV 研究: (1)广安门医院150例房颤(2024); "
+    "(2)老年2型糖尿病(新中医, 2017); (3)台湾中国医药大学 PMID:28137520 — "
+    "气虚/阳虚/阴虚/血瘀/气郁质 SDNN/RMSSD 与 HRV 呈负相关"
+)
+
+
+# ──────────────────────────────────────────────
 # 受控词表 (controlled vocabularies)
 # ──────────────────────────────────────────────
 # 八纲：阴阳 表里 寒热 虚实
@@ -96,6 +133,7 @@ class SyndromeCatalogEntry:
     hrv_detectable: bool = False                 # HRV 能否代理（仅小子集）
     evidence: EvidenceGrade = EvidenceGrade.NONE  # HRV→证 证据等级
     notes: str = ""                              # 备注（如 HRV 相关性说明）
+    citations: list[str] = field(default_factory=list)  # 已核实文献(空=纯理论推断)
 
 
 # ──────────────────────────────────────────────
@@ -112,12 +150,14 @@ def _add(
     diff: list[str], tp: str, patho: str,
     hrv: bool = False, evidence: EvidenceGrade = EvidenceGrade.NONE,
     notes: str = "",
+    citations: list[str] | None = None,
 ) -> None:
     TCM_SYNDROME_CATALOG[id] = SyndromeCatalogEntry(
         id=id, name_cn=name_cn, name_en=name_en, category=category,
         organ_system=organ, eight_principle=principle, etiology=etiology,
         differentiation_points=diff, tongue_pulse=tp, patho=patho,
         hrv_detectable=hrv, evidence=evidence, notes=notes,
+        citations=citations or [],
     )
 
 
@@ -131,13 +171,15 @@ _add("liver_qi_stagnation", "肝郁气滞", "Liver-Qi Stagnation", CATEGORY_ZANG
      ["情志抑郁，善太息", "胸胁、少腹胀闷窜痛", "脉弦"],
      "苔薄白；脉弦", "肝失疏泄，气机郁滞；七情所伤为常见因。",
      hrv=True, evidence=EvidenceGrade.MODERATE,
-     notes="HRV 偏低、恢复慢(vagal reactivation 慢)、日间波动大→自主神经张力异常(NRICM 2010)。")
+     notes="HRV 偏低、恢复慢(vagal reactivation 慢)、日间波动大→自主神经张力异常。",
+     citations=[CITE_ANXIETY_DEPRESSION_HRV, CITE_CHEST_PAIN_HRV])
 _add("liver_fire_hyperactivity", "肝火炽盛", "Liver-Fire Hyperactivity", CATEGORY_ZANGFU,
      ["肝"], ["excess", "heat"], ["怒", "火(热)"],
      ["头胀痛，面红目赤", "口苦口干，急躁易怒", "舌红苔黄，脉弦数"],
      "舌红苔黄；脉弦数", "肝郁化火或过食辛辣→肝火上炎。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="交感偏亢：RHR↑、HRV↓、应激反应强（强=实火，证据弱）。")
+     notes="交感偏亢：RHR↑、HRV↓、应激反应强。间接证据：慢性疲劳肝郁化火组 LF/HF>2。",
+     citations=[CITE_CHRONIC_FATIGUE_HRV])
 _add("liver_yang_rising", "肝阳上亢", "Liver-Yang Rising", CATEGORY_ZANGFU,
      ["肝", "肾"], ["excess", "heat"], ["怒", "体质", "久病"],
      ["头晕目眩，面红升火", "头重脚轻，腰膝酸软", "脉弦有力"],
@@ -209,7 +251,8 @@ _add("heart_vessel_blood_stasis", "心脉瘀阻", "Heart-Vessel Blood Stasis", C
      ["心胸憋闷刺痛，固定不移", "面唇青紫", "舌紫暗有瘀斑，脉涩或结代"],
      "舌紫暗有瘀斑；脉涩或结代", "瘀血阻滞心脉，血行不畅。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="HRV 降低、心率变异性减小与心血管自主神经失调相关（证据弱）。")
+     notes="HRV 降低与心血管自主神经失调相关。间接证据：胸痹心痛气滞血瘀证 SDANN↓。",
+     citations=[CITE_CHEST_PAIN_HRV])
 _add("phlegm_fire_harassing_heart", "痰火扰心", "Phlegm-Fire Harassing Heart", CATEGORY_ZANGFU,
      ["心"], ["excess", "heat"], ["痰饮", "火(热)", "思"],
      ["心烦失眠，易惊", "甚则谵妄神昏，苔黄腻", "舌红苔黄腻，脉滑数"],
@@ -224,8 +267,9 @@ _add("spleen_qi_deficiency", "脾气虚", "Spleen-Qi Deficiency", CATEGORY_ZANGF
      ["脾"], ["deficiency"], ["饮食不节", "劳逸失度", "思"],
      ["食少纳呆，腹胀便溏", "肢体倦怠，神疲乏力", "舌淡苔白，脉缓弱"],
      "舌淡苔白；脉缓弱", "脾失健运，气血生化不足。",
-     hrv=True, evidence=EvidenceGrade.MODERATE,
-     notes="整体自主神经张力低下：SDNN/HF↓、LF-HF↑、恢复慢(Olivera-Toro 2019)。")
+     hrv=True, evidence=EvidenceGrade.WEAK,
+     notes="整体自主神经张力低下倾向。间接证据：九种体质研究示气虚质 HRV 偏低，但缺乏脾虚特异性 HRV 对照研究。",
+     citations=[CITE_CONSTITUTION_HRV])
 _add("spleen_yang_deficiency", "脾阳虚", "Spleen-Yang Deficiency", CATEGORY_ZANGFU,
      ["脾"], ["deficiency", "cold"], ["饮食不节", "久病"],
      ["腹痛喜温喜按，大便清稀", "畏寒肢冷，面色㿠白", "舌淡胖苔白滑，脉沉迟无力"],
@@ -321,13 +365,15 @@ _add("kidney_yang_deficiency", "肾阳虚", "Kidney-Yang Deficiency", CATEGORY_Z
      ["畏寒肢冷，腰膝酸冷", "阳痿早泄，夜尿频多", "舌淡胖苔白，脉沉弱"],
      "舌淡胖苔白；脉沉弱", "肾阳不足，温煦气化失职。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="整体机能低下：HRV 低、RHR 偏低（证据弱，难区分阴虚/阳虚）。")
+     notes="整体机能低下：HRV 低、RHR 偏低（难区分阴虚/阳虚）。间接证据：慢性疲劳肾气亏虚组 HRV 降低。",
+     citations=[CITE_CHRONIC_FATIGUE_HRV])
 _add("kidney_yin_deficiency", "肾阴虚", "Kidney-Yin Deficiency", CATEGORY_ZANGFU,
      ["肾"], ["deficiency", "heat"], ["久病", "体质", "过劳"],
      ["腰膝酸软，眩晕耳鸣", "潮热盗汗，遗精", "舌红少津，脉细数"],
      "舌红少津；脉细数", "肾阴亏虚，虚热内生。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="交感偏亢：RHR↑、应激反应强（证据弱）。")
+     notes="交感偏亢：RHR↑、应激反应强。间接证据：肾虚肝郁型 DOR 患者 SDNN/RMSSD/HF↓。",
+     citations=[CITE_DOR_HRV])
 _add("kidney_essence_insufficiency", "肾精不足", "Kidney-Essence Insufficiency", CATEGORY_ZANGFU,
      ["肾"], ["deficiency"], ["体质", "久病"],
      ["生长发育迟缓/早衰", "腰膝酸软，健忘恍惚", "舌淡，脉弱"],
@@ -391,7 +437,8 @@ _add("qi_deficiency", "气虚证", "Qi Deficiency", CATEGORY_QI_BLOOD,
      ["神疲乏力，少气懒言", "自汗，舌淡脉虚", "动则诸症加重"],
      "舌淡苔白；脉虚", "先天不足或后天失养，元气亏虚。",
      hrv=True, evidence=EvidenceGrade.MODERATE,
-     notes="整体 HRV 低下→推动无力（RMSSD 低于常模可作 proxy，中）。")
+     notes="整体 HRV 低下→推动无力（RMSSD 低于常模可作 proxy）。",
+     citations=[CITE_CONSTITUTION_HRV])
 _add("qi_collapse", "气陷证", "Qi Collapse (Sinking)", CATEGORY_QI_BLOOD,
      ["脾"], ["deficiency"], ["过劳", "久病"],
      ["坠胀脱垂，久泻", "气短乏力，脏器下垂", "舌淡苔白，脉弱"],
@@ -405,19 +452,22 @@ _add("qi_stagnation", "气滞证", "Qi Stagnation", CATEGORY_QI_BLOOD,
      ["胀闷疼痛，走窜不定", "嗳气太息，随情绪增减", "脉弦"],
      "苔薄；脉弦", "气机郁滞，运行不畅。",
      hrv=True, evidence=EvidenceGrade.MODERATE,
-     notes="HRV 波动大、恢复慢→气机郁滞（证据中）。")
+     notes="HRV 波动大、恢复慢→气机郁滞。",
+     citations=[CITE_ANXIETY_DEPRESSION_HRV])
 _add("blood_deficiency", "血虚证", "Blood Deficiency", CATEGORY_QI_BLOOD,
      ["心", "肝", "脾"], ["deficiency"], ["久病", "体质"],
      ["面白无华，唇甲淡白", "眩晕心悸，手足麻木", "舌淡，脉细"],
      "舌淡；脉细", "血亏失充，濡养不足。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="RHR 偏快倾向（血虚→代偿，证据弱）。")
+     notes="RHR 偏快倾向（血虚→代偿）。间接证据：九种体质研究示血瘀质 HRV 偏低。",
+     citations=[CITE_CONSTITUTION_HRV])
 _add("blood_stasis", "血瘀证", "Blood Stasis", CATEGORY_QI_BLOOD,
      ["心", "肝"], ["excess"], ["瘀血", "寒", "久病"],
      ["刺痛固定不移，夜间加重", "面色黧黑，唇甲青紫", "舌紫暗有瘀斑，脉涩"],
      "舌紫暗有瘀斑；脉涩", "血行不畅，瘀血内阻。",
      hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="HRV 降低与自主神经/血管内皮功能失调相关（证据弱）。")
+     notes="HRV 降低与自主神经/血管内皮功能失调相关。间接证据：胸痹心痛气滞血瘀 SDANN↓；血瘀质 HRV 负相关。",
+     citations=[CITE_CHEST_PAIN_HRV, CITE_CONSTITUTION_HRV])
 _add("blood_heat", "血热证", "Blood Heat", CATEGORY_QI_BLOOD,
      ["心", "肝"], ["excess", "heat"], ["火(热)", "体质"],
      ["出血色鲜红，身热", "心烦口渴，面红", "舌红绛，脉数"],
@@ -431,7 +481,8 @@ _add("qi_blood_deficiency_syndrome", "气血两虚证", "Qi-Blood Deficiency", C
      ["面色淡白或萎黄，神疲乏力", "心悸失眠，头晕目眩", "舌淡嫩，脉细弱"],
      "舌淡嫩，苔薄白；脉细弱", "气血互根失调，生化不足。",
      hrv=True, evidence=EvidenceGrade.MODERATE,
-     notes="RMSSD 低 + RHR 偏快 + 睡眠不足→气血濡养不足（中）。")
+     notes="RMSSD 低 + RHR 偏快 + 睡眠不足→气血濡养不足。",
+     citations=[CITE_CONSTITUTION_HRV])
 _add("qi_fail_secure_blood", "气不摄血", "Qi Fail to Secure Blood", CATEGORY_QI_BLOOD,
      ["脾"], ["deficiency"], ["久病", "体质"],
      ["出血色淡质稀，面色无华", "神疲乏力，气短", "舌淡，脉细弱"],
@@ -456,8 +507,9 @@ _add("phlegm_pattern", "痰证", "Phlegm Pattern", CATEGORY_QI_BLOOD,
      ["脾", "肺"], ["excess"], ["痰饮", "湿"],
      ["痰多胸闷，苔腻脉滑", "痰核瘰疬，或蒙蔽清窍", "苔腻，脉滑"],
      "苔腻；脉滑", "津聚为痰，随气升降无处不到。",
-     hrv=True, evidence=EvidenceGrade.WEAK,
-     notes="严重自主神经抑制、周期校准后仍异常波动（Yang 2008，证据弱-中）。")
+     hrv=True, evidence=EvidenceGrade.MODERATE,
+     notes="肝郁痰阻型迷走神经下降最显著；痰瘀互结 SDNN/rMSSD/HF↓。",
+     citations=[CITE_ANXIETY_DEPRESSION_HRV, CITE_CHEST_PAIN_HRV])
 _add("fluid_retention_pattern", "饮证", "Fluid-Retention Pattern", CATEGORY_QI_BLOOD,
      ["肺", "脾", "肾"], ["excess"], ["痰饮", "寒"],
      ["脘腹满闷，肠鸣漉漉", "或悬饮、溢饮、支饮", "苔白滑，脉沉弦"],
@@ -613,6 +665,13 @@ def validate_catalog() -> list[str]:
 
         if e.hrv_detectable and e.evidence == EvidenceGrade.NONE:
             errors.append(f"{sid}: hrv_detectable but evidence=NONE")
+
+        # MODERATE or above MUST carry verified citations
+        if e.evidence in (EvidenceGrade.STRONG, EvidenceGrade.MODERATE):
+            if not e.citations:
+                errors.append(
+                    f"{sid}: evidence={e.evidence.value} requires non-empty citations"
+                )
 
         if not e.differentiation_points:
             errors.append(f"{sid}: empty differentiation_points")

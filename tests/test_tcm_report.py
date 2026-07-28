@@ -109,3 +109,14 @@ def test_markdown_low_scores_still_compliant():
     md = render_markdown(build_tcm_report(a))
     assert "⚠️" in md
     assert "非中医诊断" in md
+
+
+def test_markdown_shows_citation_status():
+    """Report should distinguish 'has citations' vs 'theory only'."""
+    a = _make_assessment(
+        qi=60.0, liver=72.0, spleen=55.0, phlegm=30.0, balance=40.0,
+        primary=SyndromeId.LIVER_QI,
+        secondary=[SyndromeId.LIVER_SPLEEN],
+    )
+    md = render_markdown(build_tcm_report(a))
+    assert "文献支撑" in md, "citation column header must be present"
