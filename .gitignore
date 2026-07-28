@@ -46,3 +46,6 @@ htmlcov/
 
 # 前端部署构建目录（由 data/web_checkin.html + src 引擎生成，不入库）
 frontend_dist/
+
+# 前端部署构建目录（push 到 gh-pages 用，不入库）
+frontend_ghpages/
