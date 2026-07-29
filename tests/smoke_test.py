@@ -54,6 +54,28 @@ def functional_contract():
 check("HiddenChainScore tier contract", functional_contract)
 
 
+# 3) Export path contract: the check-in frontend's exportCSV() must use the
+#    ST store-name constant (guards the historical checkins->logs mismatch).
+def export_csv_contract():
+    import re
+    frontend = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "data", "web_checkin.html"
+    )
+    html = open(frontend, encoding="utf-8").read()
+    assert re.search(r"function\s+exportCSV\s*\(", html), "exportCSV() missing"
+    hardcoded = []
+    for pat in (
+        r"\.transaction\(\s*['\"]\w+['\"]",
+        r"\.objectStore\(\s*['\"]\w+['\"]",
+        r"createObjectStore\(\s*['\"]\w+['\"]",
+    ):
+        hardcoded += re.findall(pat, html)
+    assert not hardcoded, f"hardcoded IndexedDB store name(s): {hardcoded}"
+
+
+check("exportCSV store-name contract", export_csv_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:

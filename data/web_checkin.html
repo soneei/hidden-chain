@@ -540,8 +540,11 @@ document.getElementById('cycleLength').addEventListener('change', savePeriodToLo
 
 function exportCSV() {
   if (!db) { alert('DB not ready yet — refresh and try again'); return; }
-  const tx = db.transaction('logs', 'readonly');
-  const store = tx.objectStore('logs');
+  // NOTE: always use the ST constant (single source of truth for the
+  // IndexedDB store name). Hardcoding the store name here caused the
+  // historical checkins→logs mismatch bug.
+  const tx = db.transaction(ST, 'readonly');
+  const store = tx.objectStore(ST);
   const req = store.getAll();
   req.onsuccess = () => {
     const rows = req.result;
