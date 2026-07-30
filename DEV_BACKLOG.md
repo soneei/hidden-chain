@@ -26,7 +26,7 @@
 ## 待办（按优先级自上而下，自动化自上而下取第一个未完成任务）
 - [x] 2026-07-28 **TCM 引擎重构（消费理论层 `research/013`）**：将 `TCMMetrics` 拆为 `tcm_theory.py`（纯理论零 HRV：证型目录/辨证要点/舌脉/八纲/复合证型/证据分级/非诊断声明）与 `tcm_hrv_estimator.py`（HRV proxy + 证据等级 + 非诊断声明）。`hrv_engine` 以 `TCMAssessment` 别名保留 `TCMMetrics`，5 主轴分数算法不变（兼容现有测试），新增 primary_syndrome/secondary_syndromes（肝郁脾虚等复合证型）/evidence/disclaimer。新增 `tests/test_tcm_estimator.py`（9 用例验证结构与合规文案）。CI 四关全绿、67 passed、覆盖率 87%。
 - [x] 2026-07-29 [smoke] 增强导出/CSV：`data/web_checkin.html` 的 `exportCSV()` 硬编码 `'logs'` 改为统一走 `ST` 常量（单一数据源，杜绝 checkins→logs 类改名断链复发）；smoke 新增「exportCSV store-name contract」检查（全文件禁止硬编码 IndexedDB store 名）；新增 `tests/test_export_csv.py`（5 用例：ST 唯一声明/导出函数存在且挂接按钮/无硬编码 store 名/exportCSV 体内走 ST；Supabase `/rest/v1/checkins` 为远端表名放行）。两份未跟踪本地副本 frontend_dist/ghpages 同步修复（不入库）。四关全绿、120 passed、覆盖率 91%。
-- [ ] [smoke] 为 `hrv_engine` 周期校准 + `hidden_chain_score` 评分补充 pytest 用例（覆盖 ScoreLevel 边界、周期相位分支）。
+- [x] 2026-07-30 [smoke] 为 `hrv_engine` 周期校准 + `hidden_chain_score` 评分补充 pytest 用例：新增 `tests/test_cycle_score_boundaries.py`（18 用例）——① ScoreLevel 四级**精确分界**首次经 `HiddenChainScorer.compute` 端到端验证（80/79、60/59、30/29，含 int 截断路径）；② CyclePhase 五相位 adjustment/label 全映射 + 相位调节项传导（FOLLICULAR vs PREMENSTRUAL 差恰=2 分）+ `analyze_day` 相位分支双输出一致 + DRI 相位表独立传导（差=10 分）；③ CycleCalibrator 跨相位统计独立性（同 rmssd 不同相位 z 值异号）与 z-score 符号/零点校验、fit 后高于基线不低分。四关全绿、138 passed、覆盖率 91.32%。
 - [ ] [manual] 修复 Web 表单"提交无响应"：定位 `server.py` 提供的表单源，修复 submit 处理器/JS 事件，保证写入 IndexedDB。验收：需人工浏览器验证。
 - [ ] [manual] 修复日期选择器不收起（date picker 不关闭）。需人工浏览器验证。
 - [ ] [manual] 修复心情标签(mood tag)点击不生效。需人工浏览器验证。
@@ -38,3 +38,4 @@
 
 ## 阻塞 / 跳过记录（自动化在此追加 `[skip]` 原因）
 - 2026-07-29：无跳过。执行首个 `[ ]`（导出/CSV 一致性）。注：任务提及的 `exportCSV` 位于前端 HTML（JS），仓库内唯一被跟踪前端为 `data/web_checkin.html`，故"导出单测"落地为 Python 静态一致性测试（pytest + smoke），frontend_dist/frontend_ghpages 两份未跟踪副本仅本地同步修复。
+- 2026-07-30：无跳过。执行首个 `[ ]`（周期校准+评分边界 pytest 补充）。纯增测试文件，未改动任何引擎代码；工作区预存的 README.md.bak / data/index.html 删除与 research/016、017 草稿为非本任务内容，未触碰未入库。
