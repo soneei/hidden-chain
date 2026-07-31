@@ -174,16 +174,36 @@ function toggleTag(btn) {
 
 // ── IndexedDB ──
 const DB = 'hcdb', ST = 'logs';
-let db;
+let db, dbPromise;
+// idb() is idempotent and cached: callers may await it at any time. The old
+// version returned a *fresh* promise per call and callers used the bare `db`
+// global, so a submit fired before the async open finished was silently
+// dropped ("submit does nothing" bug).
 function idb() {
+  if (db) return Promise.resolve(db);
+  if (!dbPromise) {
+    dbPromise = new Promise(r => {
+      let q;
+      try { q = indexedDB.open(DB, 1); } catch(_) { dbPromise = null; return r(null); }
+      q.onupgradeneeded = e => e.target.result.createObjectStore(ST, {keyPath:'id',autoIncrement:true});
+      q.onsuccess = e => { db = e.target.result; r(db); };
+      q.onerror = () => { dbPromise = null; r(null); };
+      q.onblocked = () => { dbPromise = null; r(null); };
+    });
+  }
+  return dbPromise;
+}
+async function all() {
+  const conn = db || await idb();
+  if (!conn) return [];
   return new Promise(r => {
-    const q = indexedDB.open(DB, 1);
-    q.onupgradeneeded = e => e.target.result.createObjectStore(ST, {keyPath:'id',autoIncrement:true});
-    q.onsuccess = e => { db = e.target.result; r(db); };
-    q.onerror = () => r(null);
+    let t;
+    try { t = conn.transaction(ST,'readonly'); } catch(_) { return r([]); }
+    const q = t.objectStore(ST).getAll();
+    q.onsuccess = () => r(q.result.sort((a,b) => a.id-b.id));
+    q.onerror = () => r([]);
   });
 }
-function all() { return new Promise(r => { if(!db) return r([]); const t = db.transaction(ST,'readonly'), s = t.objectStore(ST), q = s.getAll(); q.onsuccess = () => r(q.result.sort((a,b) => a.id-b.id)); q.onerror = () => r([]); }); }
 
 // ── Supabase 数据收集 ──
 const SUPABASE_URL = "https://itdgghheoakmimystv.supabase.co";
@@ -204,7 +224,27 @@ async function saveToSupabase(data) {
   }
 }
 
-function save(e) { if(!db) return; const t = db.transaction(ST,'readwrite'); t.objectStore(ST).add(e); }
+// save() now awaits the DB open, resolves only after the write transaction
+// COMMITS, and rejects (instead of silently returning) on any failure so the
+// caller can surface an inline error to the user.
+async function save(e) {
+  const conn = db || await idb();
+  if (!conn) throw new Error('Local storage unavailable — check-in was not saved on this device.');
+  return new Promise((res, rej) => {
+    let t;
+    try { t = conn.transaction(ST,'readwrite'); } catch(err) { return rej(err); }
+    const req = t.objectStore(ST).add(e);
+    req.onerror = () => rej(req.error || new Error('IndexedDB write failed'));
+    t.oncomplete = () => res(true);
+    t.onerror = () => rej(t.error || new Error('IndexedDB transaction failed'));
+    t.onabort = () => rej(t.error || new Error('IndexedDB transaction aborted'));
+  });
+}
+// Persist + surface failures. Never lets a storage error pass unnoticed.
+async function saveOrWarn(entry) {
+  try { await save(entry); return true; }
+  catch (err) { console.error(err); showInlineError('Saved to server but NOT to this device: ' + (err && err.message ? err.message : err)); return false; }
+}
 function exportData() { all().then(d => { if(!d.length) { alert('No data yet.'); return; } const b = new Blob([JSON.stringify(d,null,2)],{type:'application/json'}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href=u; a.download='hidden_chain_data.json'; a.click(); URL.revokeObjectURL(u); }); }
 function importData(ev) { const f = ev.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = e => { try { const d = JSON.parse(e.target.result); const t = db.transaction(ST,'readwrite'), s = t.objectStore(ST); s.clear(); d.forEach(x => { delete x.id; s.add(x); }); t.oncomplete = () => location.reload(); } catch(_) { alert('Invalid file.'); } }; r.readAsText(f); ev.target.value = ''; }
 
@@ -304,7 +344,20 @@ function showInlineError(msg) {
   setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
 
+// Thin wrapper: any *synchronous* throw inside the handler used to kill the
+// click with zero UI feedback. Now it always surfaces an inline error.
 function submitCheckin() {
+  try {
+    return submitCheckinImpl();
+  } catch (err) {
+    console.error(err);
+    showInlineError('Submit failed: ' + (err && err.message ? err.message : err));
+    const b = document.querySelector('.btn');
+    if (b) { b.disabled = false; b.textContent = 'Submit → Get Score'; }
+  }
+}
+
+function submitCheckinImpl() {
   const h = parseFloat(document.getElementById('hrv').value), r = parseInt(document.getElementById('rhr').value);
   const cyc = calcCycleDay();
   if (!h || !r) { showInlineError('Please fill in HRV and Resting Heart Rate.'); return; }
@@ -321,10 +374,10 @@ function submitCheckin() {
 
   fetch('/api/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)})
     .then(r => r.ok?r.json():Promise.reject())
-    .then(r => { if(r.error){showInlineError(r.error);return;} showResult(r); save({user_id:name,date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
+    .then(async r => { if(r.error){showInlineError(r.error);return;} showResult(r); await saveOrWarn({user_id:name,date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:r.score,phase:r.phase}); renderHistory(); renderChart(); })
     .catch(async () => {
       const sc = computePreview(h,r,c); const hrr = pk && r1 ? pk - r1 : null; const aa = estAutonomicAge(h);
-      save({date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
+      await saveOrWarn({user_id:name,date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,score:sc.score,phase:sc.phase});
       const tcm0 = computeTCMOffline(h, sc.phase, sc.phaseAdj, r, sl, tags);
       const supabaseData2 = {date:p.date,hrv_rmssd:h,resting_hr:r,cycle_day:c,mood_score:m,mood_tags:tags,sleep_hours:sl,score:sc.score,phase:sc.phase,autonomic_age:aa.age,risk_alert:aa.age<=30?'green':aa.age<=45?'yellow':'red',hrr_peak:pk||null,hrr_1min:r1||null}; saveToSupabase(supabaseData2);
       let offlineReport = null;

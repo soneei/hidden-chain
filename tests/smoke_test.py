@@ -76,6 +76,30 @@ def export_csv_contract():
 check("exportCSV store-name contract", export_csv_contract)
 
 
+# 4) Check-in persistence contract: submitCheckin() must never silently drop a
+#    check-in. save() has to await the DB open and reject on failure, and both
+#    call sites must go through saveOrWarn() so the user sees an error.
+def checkin_persistence_contract():
+    import re
+    frontend = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "data", "web_checkin.html"
+    )
+    html = open(frontend, encoding="utf-8").read()
+    assert re.search(r"async\s+function\s+save\s*\(", html), "save() must be async"
+    assert re.search(
+        r"async\s+function\s+save\s*\([^)]*\)\s*\{[^}]*await\s+idb\(\)", html
+    ), "save() must await idb() instead of bailing on a not-yet-open db"
+    assert "function saveOrWarn" in html, "saveOrWarn() missing"
+    assert not re.search(
+        r"(?<!OrWarn)\bsave\(\{", html
+    ), "check-in write must go through saveOrWarn(), not a bare fire-and-forget save()"
+    assert re.search(r"function\s+submitCheckin\s*\([^)]*\)\s*\{\s*try", html), \
+        "submitCheckin() must wrap its body in try/catch so sync errors surface"
+
+
+check("check-in persistence contract", checkin_persistence_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:
