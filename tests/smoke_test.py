@@ -100,6 +100,32 @@ def checkin_persistence_contract():
 check("check-in persistence contract", checkin_persistence_contract)
 
 
+# 5) Date picker dismissal contract: the native <input type="date"> popup must
+#    be closable even when `change` never fires (re-picking the same date), and
+#    the blur must be deferred so the browser does not swallow it.
+def date_picker_dismissal_contract():
+    import re
+    frontend = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "data", "web_checkin.html"
+    )
+    html = open(frontend, encoding="utf-8").read()
+    assert "function closeDatePicker" in html, "closeDatePicker() missing"
+    body = re.search(r"function\s+closeDatePicker\s*\([^)]*\)\s*\{(.*?)\n\}", html, re.S)
+    assert body, "could not locate closeDatePicker() body"
+    assert re.search(r"setTimeout\(", body.group(1)), \
+        "closeDatePicker() must defer blur() one macrotask, not blur synchronously"
+    assert re.search(r"\.blur\(\)", body.group(1)), "closeDatePicker() must blur the input"
+    assert not re.search(
+        r"addEventListener\(\s*'change'\s*,\s*\(\)\s*=>\s*\{[^}]*\.blur\(\)", html
+    ), "blur() must not be called synchronously inside a change handler"
+    assert "'Escape'" in html, "no Escape-key fallback to dismiss the date picker"
+    assert re.search(r"addEventListener\(\s*'pointerdown'", html), \
+        "no outside-tap fallback to dismiss the date picker"
+
+
+check("date picker dismissal contract", date_picker_dismissal_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:

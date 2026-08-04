@@ -162,8 +162,30 @@ function updatePhaseHint() {
   hint.innerHTML = 'Today is <strong>Day ' + c.day + '</strong> of ' + c.length + ' — <strong>' + c.phase + '</strong> (this phase typically has ' + c.expected + ').' + ext;
 }
 
-document.getElementById('periodStart').addEventListener('change', () => { updatePhaseHint(); document.getElementById('periodStart').blur(); });
-document.getElementById('cycleLength').addEventListener('change', updatePhaseHint);
+// ── Date picker dismissal ──
+// A native <input type="date"> can leave its popup / iOS wheel tray open:
+//   * re-picking the SAME date fires no `change` event at all, so a
+//     change-only close never runs and the tray stays up indefinitely;
+//   * a synchronous blur() inside `change` lands while the browser is still
+//     committing the selection and gets silently swallowed.
+// Fix: defer the blur by one macrotask, drive the phase hint off `input` (the
+// event mobile wheels fire on every tick, where `change` only fires on
+// dismissal), and add Escape / outside-tap fallbacks that still work when
+// `change` never fires. Native picker chrome lives outside the DOM, so the
+// document-level listener cannot fire while the user is still choosing a date.
+const periodStartEl = document.getElementById('periodStart');
+const cycleLengthEl = document.getElementById('cycleLength');
+
+function closeDatePicker() {
+  setTimeout(() => periodStartEl.blur(), 0);
+}
+
+periodStartEl.addEventListener('change', () => { updatePhaseHint(); savePeriodToLocal(); closeDatePicker(); });
+periodStartEl.addEventListener('input', updatePhaseHint);
+periodStartEl.addEventListener('keydown', e => { if (e.key === 'Escape' || e.key === 'Enter') closeDatePicker(); });
+document.addEventListener('pointerdown', e => { if (e.target !== periodStartEl && document.activeElement === periodStartEl) closeDatePicker(); });
+cycleLengthEl.addEventListener('change', () => { updatePhaseHint(); savePeriodToLocal(); });
+cycleLengthEl.addEventListener('input', updatePhaseHint);
 
 // ── Mood tag toggle ──
 function toggleTag(btn) {
@@ -588,8 +610,10 @@ function savePeriodToLocal() {
   localStorage.setItem('hc_periodStart', document.getElementById('periodStart').value);
   localStorage.setItem('hc_cycleLength', document.getElementById('cycleLength').value);
 }
-document.getElementById('periodStart').addEventListener('change', savePeriodToLocal);
-document.getElementById('cycleLength').addEventListener('change', savePeriodToLocal);
+// NOTE: persistence is invoked from the consolidated `change` handlers in the
+// "Date picker dismissal" section above — a second listener here would have to
+// stay in sync with them, which is exactly how the close-on-change regression
+// slipped in before.
 
 function exportCSV() {
   if (!db) { alert('DB not ready yet — refresh and try again'); return; }
