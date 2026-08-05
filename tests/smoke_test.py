@@ -126,6 +126,38 @@ def date_picker_dismissal_contract():
 check("date picker dismissal contract", date_picker_dismissal_contract)
 
 
+# 6) Mood-tag end-to-end contract: a ticked mood tag must actually reach the
+#    engine. The tags used to be dropped on the server path (analyze_day never
+#    forwarded them, checkin() never read them), so clicking a tag changed
+#    nothing at all whenever the backend was reachable.
+def mood_tag_contract():
+    import inspect
+    from hrv_engine import HRVEngine, HRVRecord
+
+    sig = inspect.signature(HRVEngine.analyze_day)
+    assert "mood_tags" in sig.parameters, "analyze_day() must accept mood_tags"
+
+    rec = HRVRecord(timestamp="2026-01-01", rmssd=42.0, sdnn=0, hf=0, lf=0,
+                    heart_rate=68, is_resting=True)
+    _, plain = HRVEngine().analyze_day(rec, day_of_cycle=10, baseline_hrv=40.0)
+    _, tagged = HRVEngine().analyze_day(rec, day_of_cycle=10, baseline_hrv=40.0,
+                                        mood_tags=["irritable", "anxious"])
+    assert tagged.liver_depression > plain.liver_depression, \
+        "mood tags must move the liver-depression axis (they were being dropped)"
+
+    # the HTTP boundary must read and forward them too
+    srv = open(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server.py"),
+        encoding="utf-8",
+    ).read()
+    assert 'data.get("mood_tags")' in srv, "checkin() must read mood_tags from the payload"
+    assert "mood_tags" in srv.split("INSERT OR REPLACE")[1][:400], \
+        "the check-in INSERT must persist mood_tags"
+
+
+check("mood tag end-to-end contract", mood_tag_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:

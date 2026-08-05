@@ -215,8 +215,15 @@ class HRVEngine:
     def analyze_day(self, resting_record: HRVRecord,
                     event_records: list[HRVRecord] | None = None,
                     day_of_cycle: int = 1,
-                    baseline_hrv: float = 40.0) -> tuple[DailyRegulationIndex, HiddenChainScore]:
-        """分析单日数据，输出完整报告（调节指数 + 隐链评分）"""
+                    baseline_hrv: float = 40.0,
+                    mood_tags: list[str] | None = None) -> tuple[DailyRegulationIndex, HiddenChainScore]:
+        """分析单日数据，输出完整报告（调节指数 + 隐链评分）
+
+        mood_tags: 情志标签（anxious/irritable/exhausted/brain_fog/...）。
+        `TCMAssessment.from_hrv` 一直支持该入参，但此前 analyze_day 从不传递，
+        导致走后端引擎时用户勾选的情绪标签对证候分数**完全无影响**
+        （前端离线降级路径反而有效）。留空 = 旧行为，向后兼容。
+        """
         phase = CyclePhase.from_day(day_of_cycle)
 
         # 归一化
@@ -238,8 +245,10 @@ class HRVEngine:
         if not event_records:
             recovery.recovery_rate = None
 
-        # 中医映射
-        tcm = TCMMetrics.from_hrv(resting_record.rmssd, normalized_hrv, recovery)
+        # 中医映射（情志标签直接参与肝郁/脾虚/痰浊三轴，见 tcm_hrv_estimator）
+        tcm = TCMMetrics.from_hrv(
+            resting_record.rmssd, normalized_hrv, recovery, mood_tags=mood_tags
+        )
 
         # 调节指数
         index = DailyRegulationIndex.compute(

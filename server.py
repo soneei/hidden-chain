@@ -39,6 +39,7 @@ def init_db():
             resting_hr REAL NOT NULL,
             cycle_day INTEGER NOT NULL,
             mood_score INTEGER,
+            mood_tags TEXT,
             sleep_hours REAL,
             event_label TEXT,
             hcs_score INTEGER,
@@ -53,8 +54,36 @@ def init_db():
         CREATE UNIQUE INDEX IF NOT EXISTS idx_user_date
         ON daily_log(user_id, date)
     """)
+    # 迁移：早于 mood_tags 的库没有该列，补上（幂等，保留既有数据）
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(daily_log)")}
+    if "mood_tags" not in cols:
+        conn.execute("ALTER TABLE daily_log ADD COLUMN mood_tags TEXT")
     conn.commit()
     conn.close()
+
+
+def parse_mood_tags(raw: object) -> list[str]:
+    """把前端传来的情志标签规整为干净列表。
+
+    前端 `#moodTagsVal` 发的是逗号串（"anxious,irritable"），但也容忍
+    JSON 数组。去空白、去空项、去重且保持顺序。
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        items = raw.split(",")
+    elif isinstance(raw, (list, tuple)):
+        items = [str(t) for t in raw]
+    else:
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in items:
+        t = t.strip()
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
 
 
 def get_history(user_id="default", days=30):
@@ -67,8 +96,11 @@ def get_history(user_id="default", days=30):
     return [r[0] for r in reversed(rows) if r[0] is not None]
 
 
-def run_engine_for_user(user_id="default", cycle_day=None):
-    """Load user's historical data, calibrate, analyze latest."""
+def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
+    """Load user's historical data, calibrate, analyze latest.
+
+    mood_tags 属于「当日主观输入」，不从历史行回读，由调用方（本次打卡）直接传入。
+    """
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
         "SELECT hrv_rmssd, resting_hr, cycle_day, date "
@@ -100,7 +132,9 @@ def run_engine_for_user(user_id="default", cycle_day=None):
 
     baseline = records[0].rmssd if records else 40.0
     day = cycle_day if cycle_day else days[-1]
-    reg_idx, hcs = engine.analyze_day(records[-1], day_of_cycle=day, baseline_hrv=baseline)
+    reg_idx, hcs = engine.analyze_day(
+        records[-1], day_of_cycle=day, baseline_hrv=baseline, mood_tags=mood_tags
+    )
     trend = TrendAnalysis.from_history(get_history(user_id, 30))
 
     return hcs, reg_idx, trend, None
@@ -121,6 +155,7 @@ def checkin():
     rhr = float(data["resting_hr"])
     cycle_day = int(data["cycle_day"])
     mood = data.get("mood_score")
+    mood_tags = parse_mood_tags(data.get("mood_tags"))
     sleep_h = data.get("sleep_hours")
     event = data.get("event_label", "")
     date = data.get("date", "")
@@ -133,15 +168,16 @@ def checkin():
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         """INSERT OR REPLACE INTO daily_log
-           (user_id, date, hrv_rmssd, resting_hr, cycle_day, mood_score, sleep_hours, event_label)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (user_id, date, hrv, rhr, cycle_day, mood, sleep_h, event)
+           (user_id, date, hrv_rmssd, resting_hr, cycle_day, mood_score, mood_tags,
+            sleep_hours, event_label)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (user_id, date, hrv, rhr, cycle_day, mood, ",".join(mood_tags), sleep_h, event)
     )
     conn.commit()
     conn.close()
 
     # Run engine
-    hcs, index, trend, error = run_engine_for_user(user_id, cycle_day)
+    hcs, index, trend, error = run_engine_for_user(user_id, cycle_day, mood_tags)
 
     if error:
         return jsonify({"error": error}), 400
@@ -187,6 +223,8 @@ def checkin():
         "autonomic_age_text": hcs.autonomic_age_text,
         "risk_alert": hcs.risk_alert,
         "risk_alert_text": hcs.risk_alert_text,
+        # 回显本次生效的情志标签：让前端/用户能确认标签确实被引擎采纳
+        "mood_tags": mood_tags,
         "tcm_report": tcm_report,
         "trend": {
             "week_avg": round(trend.week_avg, 1),
