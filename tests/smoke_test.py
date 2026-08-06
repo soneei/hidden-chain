@@ -158,6 +158,34 @@ def mood_tag_contract():
 check("mood tag end-to-end contract", mood_tag_contract)
 
 
+# 7) Deploy bootstrap contract: Render starts the app with `gunicorn server:app`,
+#    which only *imports* the module — it never runs __main__. Schema creation
+#    must therefore happen at import scope, and the SQLite file must sit on the
+#    mounted disk (HC_DATA_DIR == disk.mountPath) or a redeploy wipes it.
+#    Text-only checks, so this stays runnable without flask/pyyaml installed.
+def deploy_bootstrap_contract():
+    import re
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    srv = open(os.path.join(root, "server.py"), encoding="utf-8").read()
+    assert re.search(r"(?m)^init_db\(\)\s*$", srv), \
+        "init_db() must run at import scope (gunicorn never executes __main__)"
+    assert "HC_DATA_DIR" in srv, "server.py must honour HC_DATA_DIR"
+    assert "debug=True" not in srv, "Werkzeug debugger must not be hardcoded on"
+
+    blueprint = os.path.join(root, "render.yaml")
+    assert os.path.exists(blueprint), "render.yaml missing"
+    y = open(blueprint, encoding="utf-8").read()
+    assert "gunicorn server:app" in y, "blueprint start command changed"
+    data_dir = re.search(r"key:\s*HC_DATA_DIR\s*\n\s*(?:#.*\n\s*)*value:\s*(\S+)", y)
+    mount = re.search(r"mountPath:\s*(\S+)", y)
+    assert data_dir and mount, "render.yaml must set HC_DATA_DIR and disk.mountPath"
+    assert data_dir.group(1).strip('"') == mount.group(1).strip('"'), \
+        "HC_DATA_DIR != disk.mountPath — DB would land on the ephemeral filesystem"
+
+
+check("deploy bootstrap contract", deploy_bootstrap_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:

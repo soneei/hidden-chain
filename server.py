@@ -23,11 +23,18 @@ from tcm_report import build_tcm_report, report_to_dict
 
 # ── App setup ──
 BASE_DIR = Path(__file__).parent
-DB_PATH = BASE_DIR / "data" / "hidden_chain.db"
+# 数据目录可用 HC_DATA_DIR 覆盖。Render 之类 PaaS 的容器文件系统是**临时的**，
+# 每次部署/重启都会重置，所以线上必须把这个变量指到挂载的持久磁盘
+# （见 render.yaml 的 disk.mountPath 与 DEPLOY_RENDER.md）。不设则用仓库内
+# 的 data/，保持本地开发行为不变。
+DATA_DIR = Path(os.environ.get("HC_DATA_DIR") or (BASE_DIR / "data"))
+DB_PATH = DATA_DIR / "hidden_chain.db"
 app = Flask(__name__, static_folder="data")
 
 
 def init_db():
+    # 新挂载的磁盘 / 全新容器里目录可能还不存在，sqlite3.connect 不会自己建父目录。
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS daily_log (
@@ -138,6 +145,14 @@ def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
     trend = TrendAnalysis.from_history(get_history(user_id, 30))
 
     return hcs, reg_idx, trend, None
+
+
+# ── WSGI bootstrap ──
+# gunicorn（Render 的 startCommand 是 `gunicorn server:app`）只是 import 本模块拿
+# `app`，**永远不会进入下面的 __main__ 分支**。建表与列迁移因此必须在 import 时
+# 就执行，否则线上第一个请求就是 "no such table: daily_log"。
+# 重复调用无害：CREATE TABLE IF NOT EXISTS 与 PRAGMA 守卫的 ALTER TABLE 都幂等。
+init_db()
 
 
 # ── Routes ──
@@ -273,8 +288,12 @@ def dashboard(user_id):
 # ── Startup ──
 
 if __name__ == "__main__":
-    init_db()
+    # init_db() 已在 import 时跑过（见上方 WSGI bootstrap），这里不必重复。
     port = int(os.environ.get("PORT", 5000))
+    # Werkzeug 调试器能在页面上执行任意代码，而这里绑的是 0.0.0.0（局域网可见），
+    # 所以默认关闭；本地要热重载/回溯就显式 HC_DEBUG=1 python server.py。
+    debug = os.environ.get("HC_DEBUG") == "1"
     print(f"\n  Hidden Chain Server running at http://localhost:{port}")
+    print(f"  DB: {DB_PATH}")
     print(f"  Open http://localhost:{port} for the daily check-in form\n")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=debug)
