@@ -61,8 +61,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install pytest + coverage
-        run: pip install pytest pytest-cov
+      # Runtime deps matter here, not just the test tooling: tests/test_mood_tags.py
+      # imports server.py (Flask) with no importorskip guard, so a pytest-only
+      # environment dies with ModuleNotFoundError. That failure is invisible
+      # locally, where flask is already installed — this job was red from
+      # 2026-08-05 (35be3ef) until 2026-08-07 for exactly that reason.
+      # Guarding those tests with importorskip would be the wrong fix: it would
+      # silently drop the mood-tag end-to-end assertions from CI, which are the
+      # only thing standing between us and a repeat of that bug.
+      - name: Install runtime + test dependencies
+        run: pip install -r requirements.txt pytest pytest-cov
       # Behavioral regression suite. The founder N=1 case (research/009) is
       # the validation oracle. Coverage gate (80% on the engine core) is
       # enforced via [tool.coverage.report] fail_under in pyproject.toml;

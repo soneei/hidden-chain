@@ -186,6 +186,48 @@ def deploy_bootstrap_contract():
 check("deploy bootstrap contract", deploy_bootstrap_contract)
 
 
+# 8) CI dependency contract: the pytest job must install the *runtime* deps, not
+#    just the test tooling. Some tests import server.py (Flask) unguarded, so a
+#    "pip install pytest pytest-cov" environment fails with ModuleNotFoundError
+#    while the developer's machine — which already has flask — stays green.
+#    This is the failure mode where local green != CI green, so it is checked
+#    here rather than trusted to memory. Text-only; no yaml parser needed.
+def ci_dependency_contract():
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    wf_path = os.path.join(root, ".github", "workflows", "ci.yml")
+    assert os.path.exists(wf_path), "CI workflow missing"
+    wf = open(wf_path, encoding="utf-8").read()
+
+    assert "unit-tests:" in wf, "unit-tests job missing from CI workflow"
+    unit_job = wf.split("unit-tests:", 1)[1]
+
+    # Does any collected test import the Flask app without an importorskip guard?
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    needs_runtime = []
+    for fn in sorted(os.listdir(tests_dir)):
+        if not (fn.startswith("test_") and fn.endswith(".py")):
+            continue
+        body = open(os.path.join(tests_dir, fn), encoding="utf-8").read()
+        if "import server" in body and "importorskip" not in body:
+            needs_runtime.append(fn)
+
+    if needs_runtime:
+        assert "-r requirements.txt" in unit_job, (
+            "unit-tests job must `pip install -r requirements.txt` — "
+            f"{', '.join(needs_runtime)} import server.py (Flask) unguarded"
+        )
+
+    # The gate must keep its teeth: coverage flag and test tooling intact.
+    assert "pytest-cov" in unit_job, "unit-tests job must install pytest-cov"
+    assert "--cov=src" in unit_job, "coverage gate dropped from the pytest command"
+
+    reqs = open(os.path.join(root, "requirements.txt"), encoding="utf-8").read()
+    assert "flask" in reqs.lower(), "requirements.txt must pin flask (server.py needs it)"
+
+
+check("CI dependency contract", ci_dependency_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:
