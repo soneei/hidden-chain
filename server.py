@@ -93,6 +93,28 @@ def parse_mood_tags(raw: object) -> list[str]:
     return out
 
 
+def parse_optional_float(raw: object) -> float | None:
+    """把可选数值字段（睡眠时长等）规整为 float 或 None。
+
+    前端空着不填时 `parseFloat('')||null` 发的是 JSON null，但别的客户端
+    （curl / 旧页面 / 表单直传）会发空串 `""`。空串一路写进库后，回读时
+    `float("")` 直接抛 ValueError 让整个打卡 500——所以入库前和回读后都过这里。
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return None
+        try:
+            return float(s)
+        except ValueError:
+            return None
+    return None
+
+
 def get_history(user_id="default", days=30):
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
@@ -107,10 +129,12 @@ def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
     """Load user's historical data, calibrate, analyze latest.
 
     mood_tags 属于「当日主观输入」，不从历史行回读，由调用方（本次打卡）直接传入。
+    sleep_hours 与 resting_hr 相反：它们是**已落库的当日测量值**，所以从最新一行
+    回读即可，`/api/dashboard` 这类不带入参的调用也能因此拿到正确结果。
     """
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
-        "SELECT hrv_rmssd, resting_hr, cycle_day, date "
+        "SELECT hrv_rmssd, resting_hr, cycle_day, date, sleep_hours "
         "FROM daily_log WHERE user_id=? ORDER BY date",
         (user_id,)
     ).fetchall()
@@ -121,7 +145,8 @@ def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
 
     records = []
     days = []
-    for hrv, rhr, cd, dt in rows:
+    sleeps: list[float | None] = []
+    for hrv, rhr, cd, dt, slp in rows:
         if cd is None:
             continue
         records.append(HRVRecord(
@@ -129,6 +154,9 @@ def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
             heart_rate=rhr, is_resting=True
         ))
         days.append(int(cd))
+        # 与 records 保持同步 append：上面的 `continue` 会跳过无周期日的行，
+        # 若按 rows[-1] 取睡眠时长就会张冠李戴地配到另一天的记录上。
+        sleeps.append(parse_optional_float(slp))
 
     if not records:
         return None, None, None, "No valid records with cycle day."
@@ -139,8 +167,11 @@ def run_engine_for_user(user_id="default", cycle_day=None, mood_tags=None):
 
     baseline = records[0].rmssd if records else 40.0
     day = cycle_day if cycle_day else days[-1]
+    # resting_hr 不必显式传：analyze_day 会从 records[-1].heart_rate 回落，
+    # 而该字段正是上面从 daily_log.resting_hr 填进去的。
     reg_idx, hcs = engine.analyze_day(
-        records[-1], day_of_cycle=day, baseline_hrv=baseline, mood_tags=mood_tags
+        records[-1], day_of_cycle=day, baseline_hrv=baseline, mood_tags=mood_tags,
+        sleep_hours=sleeps[-1]
     )
     trend = TrendAnalysis.from_history(get_history(user_id, 30))
 
@@ -171,7 +202,7 @@ def checkin():
     cycle_day = int(data["cycle_day"])
     mood = data.get("mood_score")
     mood_tags = parse_mood_tags(data.get("mood_tags"))
-    sleep_h = data.get("sleep_hours")
+    sleep_h = parse_optional_float(data.get("sleep_hours"))
     event = data.get("event_label", "")
     date = data.get("date", "")
 

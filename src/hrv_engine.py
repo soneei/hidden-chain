@@ -216,14 +216,30 @@ class HRVEngine:
                     event_records: list[HRVRecord] | None = None,
                     day_of_cycle: int = 1,
                     baseline_hrv: float = 40.0,
-                    mood_tags: list[str] | None = None) -> tuple[DailyRegulationIndex, HiddenChainScore]:
+                    mood_tags: list[str] | None = None,
+                    resting_hr: float | None = None,
+                    sleep_hours: float | None = None) -> tuple[DailyRegulationIndex, HiddenChainScore]:
         """分析单日数据，输出完整报告（调节指数 + 隐链评分）
 
         mood_tags: 情志标签（anxious/irritable/exhausted/brain_fog/...）。
         `TCMAssessment.from_hrv` 一直支持该入参，但此前 analyze_day 从不传递，
         导致走后端引擎时用户勾选的情绪标签对证候分数**完全无影响**
         （前端离线降级路径反而有效）。留空 = 旧行为，向后兼容。
+
+        resting_hr / sleep_hours: 与 mood_tags 同源的缺陷——`from_hrv` 同样一直
+        支持这两个入参（静息心率进气血/脾虚轴，睡眠时长进气血/肝郁轴），但
+        analyze_day 从不传递，用户在表单里填的静息心率与睡眠时长走后端时
+        **一填就丢**。留空 = 旧行为，向后兼容。
+
+        `resting_hr` 未显式给出时，回落到 `resting_record.heart_rate`——记录本身
+        就带着这个测量值，此前却被无视（同一条记录 heart_rate=60 与 88 结果完全
+        相同）。仅在该记录 `is_resting` 且心率 > 0 时回落：非静息记录的心率是运动/
+        事件中的瞬时值，不能当静息心率用；0 是本仓库常见的「未填占位」（server
+        构造记录时 sdnn/hf/lf 都填 0），不是真实测量。
         """
+        if resting_hr is None and resting_record.is_resting \
+                and resting_record.heart_rate > 0:
+            resting_hr = resting_record.heart_rate
         phase = CyclePhase.from_day(day_of_cycle)
 
         # 归一化
@@ -245,9 +261,11 @@ class HRVEngine:
         if not event_records:
             recovery.recovery_rate = None
 
-        # 中医映射（情志标签直接参与肝郁/脾虚/痰浊三轴，见 tcm_hrv_estimator）
+        # 中医映射（情志标签直接参与肝郁/脾虚/痰浊三轴，静息心率参与气血/脾虚，
+        # 睡眠时长参与气血/肝郁，见 tcm_hrv_estimator）
         tcm = TCMMetrics.from_hrv(
-            resting_record.rmssd, normalized_hrv, recovery, mood_tags=mood_tags
+            resting_record.rmssd, normalized_hrv, recovery,
+            resting_hr=resting_hr, sleep_hours=sleep_hours, mood_tags=mood_tags
         )
 
         # 调节指数

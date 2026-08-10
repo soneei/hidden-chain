@@ -228,6 +228,57 @@ def ci_dependency_contract():
 check("CI dependency contract", ci_dependency_contract)
 
 
+# 9) Sleep / resting-HR forwarding contract: same defect family as the mood
+#    tags — `TCMAssessment.from_hrv` accepts resting_hr and sleep_hours, but
+#    analyze_day never passed them, so both form fields were silently dropped
+#    on the server path (the offline fallback in the page used them correctly,
+#    which is exactly why this never looked broken in the static build).
+def sleep_rhr_forwarding_contract():
+    import inspect
+    from hrv_engine import HRVEngine, HRVRecord
+
+    sig = inspect.signature(HRVEngine.analyze_day)
+    for p in ("resting_hr", "sleep_hours"):
+        assert p in sig.parameters, f"analyze_day() must accept {p}"
+
+    def axes(hr, sleep):
+        rec = HRVRecord(timestamp="2026-01-01", rmssd=44.0, sdnn=0, hf=0, lf=0,
+                        heart_rate=hr, is_resting=True)
+        _, s = HRVEngine().analyze_day(rec, day_of_cycle=10, baseline_hrv=40.0,
+                                       sleep_hours=sleep)
+        return s
+
+    rested, strained = axes(60, 8.0), axes(88, 4.0)
+    assert strained.qi_blood > rested.qi_blood, \
+        "a high resting HR must raise the qi-blood axis (it was being dropped)"
+    assert strained.liver_depression > rested.liver_depression, \
+        "short sleep must raise the liver-depression axis (it was being dropped)"
+
+    # A resting record already carries heart_rate; ignoring it was the bug.
+    assert axes(88, None).qi_blood > axes(60, None).qi_blood, \
+        "resting_hr must fall back to resting_record.heart_rate"
+
+    # ...but an event record's heart rate is not a *resting* HR.
+    ev = HRVRecord(timestamp="2026-01-01", rmssd=44.0, sdnn=0, hf=0, lf=0,
+                   heart_rate=88, is_resting=False)
+    _, moving = HRVEngine().analyze_day(ev, day_of_cycle=10, baseline_hrv=40.0)
+    assert moving.qi_blood == rested.qi_blood, \
+        "non-resting heart_rate must not be treated as resting HR"
+
+    # The HTTP boundary must read the column back, aligned with the record list.
+    srv = open(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server.py"),
+        encoding="utf-8",
+    ).read()
+    assert "sleep_hours" in srv.split("FROM daily_log WHERE user_id=? ORDER BY date")[0], \
+        "run_engine_for_user must SELECT sleep_hours back out of daily_log"
+    assert "sleep_hours=sleeps[-1]" in srv, \
+        "run_engine_for_user must forward the stored sleep_hours to analyze_day"
+
+
+check("sleep/resting-HR forwarding contract", sleep_rhr_forwarding_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:
