@@ -24,10 +24,18 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Cheap syntax gate: compile every engine + test module.
+      # Cheap syntax gate: compile every tracked Python module.
       # Catches version-incompatible syntax (engine requires >=3.10).
+      #
+      # server.py and tools/ are in scope deliberately. Until 2026-08-11 this
+      # line read `src/*.py tests/*.py`, so a syntax error in server.py passed
+      # all three matrix jobs green: nothing here compiled it, and the only job
+      # that imports it (unit-tests) could not even install flask until
+      # 2026-08-07 — the app entrypoint was the least-checked file in the repo.
+      # Keep this list covering every tracked .py; tests/test_ci_config.py
+      # discovers them via `git ls-files` and fails if one is left out.
       - name: Syntax check (py_compile)
-        run: python -m py_compile src/*.py tests/*.py
+        run: python -m py_compile src/*.py tests/*.py server.py tools/*.py
 
       # Real gate: import all engine modules + verify the ScoreLevel contract.
       # Exit code 0 = pass; any failure blocks the merge/push path.

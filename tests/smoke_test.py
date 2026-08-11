@@ -279,6 +279,63 @@ def sleep_rhr_forwarding_contract():
 check("sleep/resting-HR forwarding contract", sleep_rhr_forwarding_contract)
 
 
+# 10) Syntax-gate coverage contract: the py_compile step must cover every
+#     tracked Python file. It read `src/*.py tests/*.py` until 2026-08-11,
+#     which left server.py — the application entrypoint — with no syntax gate
+#     at all across the entire 3.10/3.11/3.12 matrix. Confirmed by experiment
+#     before fixing: appending an unclosed paren to server.py still exited 0
+#     under the old command, and exits 1 under the new one.
+#
+#     Discovery-based on purpose. Hard-coding "server.py and tools/" would go
+#     stale the moment another top-level package appears, which is precisely
+#     how the blind spot opened in the first place. Untracked/ignored dirs are
+#     excluded because CI only checks out what git tracks: the frontend_dist/
+#     and frontend_ghpages/ mirrors are gitignored, and counting them would
+#     make this check red locally while staying green on GitHub — the same
+#     local-vs-CI asymmetry that hid the missing-flask bug for three days.
+def syntax_gate_coverage_contract():
+    import re
+    from pathlib import PurePosixPath
+
+    root = os.path.abspath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    )
+    wf_path = os.path.join(root, ".github", "workflows", "ci.yml")
+    wf = open(wf_path, encoding="utf-8").read()
+
+    m = re.search(r"run:\s*python -m py_compile\s+(.+)", wf)
+    assert m, "quality-gate must keep a `python -m py_compile` syntax step"
+    patterns = m.group(1).split()
+
+    skip_dirs = {
+        ".git", ".github", ".workbuddy", "__pycache__", "node_modules",
+        "build", "dist", "frontend_dist", "frontend_ghpages",
+        ".venv", "venv", ".mypy_cache", ".pytest_cache",
+    }
+    uncovered = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for fn in filenames:
+            if not fn.endswith(".py"):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, fn), root).replace(os.sep, "/")
+            if not any(PurePosixPath(rel).match(p) for p in patterns):
+                uncovered.append(rel)
+
+    assert not uncovered, (
+        "outside the CI syntax gate (a syntax error in these would pass CI "
+        f"green): {', '.join(sorted(uncovered))}"
+    )
+
+    # The entrypoint that motivated this contract, pinned explicitly so that
+    # deleting the discovery loop above cannot quietly retire the gate.
+    assert any(PurePosixPath("server.py").match(p) for p in patterns), \
+        "server.py must be covered by the py_compile syntax gate"
+
+
+check("syntax gate coverage contract", syntax_gate_coverage_contract)
+
+
 if failed:
     print(f"\nSMOKE TEST FAILED: {len(failed)} check(s)")
     for n, e in failed:

@@ -28,6 +28,8 @@ network, no GitHub API.
 """
 import os
 import re
+import subprocess
+from pathlib import PurePosixPath
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 WORKFLOW = os.path.join(REPO, ".github", "workflows", "ci.yml")
@@ -119,3 +121,96 @@ def test_all_three_gates_still_wired():
         assert job in wf, f"CI job {job} disappeared from the workflow"
     assert "smoke_test.py" in wf, "smoke gate must stay wired into CI"
     assert "mypy src/" in wf, "mypy gate must stay wired into CI"
+
+
+# ──────────────────────────────────────────────
+# 3) The syntax gate covers every tracked module
+# ──────────────────────────────────────────────
+#
+# Second instance of the same species as the flask bug above: a gate that looks
+# like it covers the repo but silently does not. Until 2026-08-11 the step read
+# ``python -m py_compile src/*.py tests/*.py`` — server.py, the entrypoint the
+# whole app runs on, had *no* syntax gate on any of the three matrix versions.
+# Reproduced before fixing: an unclosed paren appended to server.py still
+# exited 0 under the old argument list, and exits 1 under the new one.
+#
+# Coverage is derived from ``git ls-files`` rather than a hardcoded list,
+# because a hardcoded list is exactly what went stale. git also gives the right
+# answer by construction: CI checks out tracked files and nothing else, so the
+# gitignored frontend_dist/ and frontend_ghpages/ mirrors stay out of scope.
+
+
+def _py_compile_patterns() -> list[str]:
+    """Arguments of the quality-gate ``py_compile`` step, as shell globs."""
+    m = re.search(r"run:\s*python -m py_compile\s+(.+)", _read(WORKFLOW))
+    assert m, "quality-gate lost its `python -m py_compile` syntax step"
+    return m.group(1).split()
+
+
+def _tracked_python_files() -> list[str]:
+    out = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=REPO, capture_output=True, text=True, check=True,
+    )
+    return [line for line in out.stdout.splitlines() if line.strip()]
+
+
+def _covered(rel_path: str, patterns: list[str]) -> bool:
+    # PurePosixPath.match, not fnmatch: `src/*.py` must not match `src/a/b.py`,
+    # since the shell would not expand it that way either.
+    return any(PurePosixPath(rel_path).match(p) for p in patterns)
+
+
+def test_quality_gate_has_a_py_compile_step():
+    assert "py_compile" in _read(WORKFLOW), "cheap syntax gate removed from CI"
+
+
+def test_py_compile_covers_the_server_entrypoint():
+    """The regression: server.py was outside the syntax gate for ~2 weeks."""
+    assert _covered("server.py", _py_compile_patterns()), (
+        "server.py is not covered by the py_compile step — a syntax error in "
+        "the app entrypoint would pass all three matrix jobs green"
+    )
+
+
+def test_py_compile_covers_tools_scripts():
+    """tools/ holds the pilot runner and this repo's own CI reporter."""
+    patterns = _py_compile_patterns()
+    for script in ("tools/run_pilot.py", "tools/ci_status_report.py"):
+        assert _covered(script, patterns), f"{script} is outside the syntax gate"
+
+
+def test_py_compile_still_covers_src_and_tests():
+    """Widening the gate must not drop what it already had."""
+    patterns = _py_compile_patterns()
+    assert _covered("src/hrv_engine.py", patterns), "src/ dropped from syntax gate"
+    assert _covered("tests/smoke_test.py", patterns), "tests/ dropped from syntax gate"
+
+
+def test_every_tracked_python_file_is_inside_the_syntax_gate():
+    """Auto-discovery: a new top-level package cannot silently escape the gate."""
+    patterns = _py_compile_patterns()
+    uncovered = [p for p in _tracked_python_files() if not _covered(p, patterns)]
+    assert not uncovered, (
+        "tracked Python files outside the CI syntax gate (syntax errors in "
+        f"them would pass CI green): {', '.join(sorted(uncovered))}"
+    )
+
+
+def test_every_tracked_python_file_actually_compiles():
+    """Run the gate for real, not just assert the workflow text looks right.
+
+    Uses the builtin ``compile`` — which is what ``py_compile`` calls
+    internally — so nothing touches the filesystem. ``py_compile`` insists on
+    emitting a .pyc beside a writable target (it writes a temp file and
+    renames), which turns a syntax check into a permissions problem.
+    """
+    broken = []
+    for rel in _tracked_python_files():
+        with open(os.path.join(REPO, rel), encoding="utf-8") as fh:
+            source = fh.read()
+        try:
+            compile(source, rel, "exec")
+        except SyntaxError as exc:
+            broken.append(f"{rel}:{exc.lineno}: {exc.msg}")
+    assert not broken, "syntax errors in tracked files:\n  " + "\n  ".join(broken)
