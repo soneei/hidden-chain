@@ -35,7 +35,7 @@ jobs:
       # Keep this list covering every tracked .py; tests/test_ci_config.py
       # discovers them via `git ls-files` and fails if one is left out.
       - name: Syntax check (py_compile)
-        run: python -m py_compile src/*.py tests/*.py server.py tools/*.py
+        run: python -m py_compile src/*.py tests/*.py server.py tools/*.py tools/*/*.py
 
       # Real gate: import all engine modules + verify the ScoreLevel contract.
       # Exit code 0 = pass; any failure blocks the merge/push path.
