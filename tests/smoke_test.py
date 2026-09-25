@@ -286,15 +286,17 @@ check("sleep/resting-HR forwarding contract", sleep_rhr_forwarding_contract)
 #     before fixing: appending an unclosed paren to server.py still exited 0
 #     under the old command, and exits 1 under the new one.
 #
-#     Discovery-based on purpose. Hard-coding "server.py and tools/" would go
-#     stale the moment another top-level package appears, which is precisely
-#     how the blind spot opened in the first place. Untracked/ignored dirs are
-#     excluded because CI only checks out what git tracks: the frontend_dist/
-#     and frontend_ghpages/ mirrors are gitignored, and counting them would
-#     make this check red locally while staying green on GitHub — the same
-#     local-vs-CI asymmetry that hid the missing-flask bug for three days.
+#     Source of truth is `git ls-files *.py`, not os.walk + a hardcoded
+#     skip_dirs list. CI checks out only tracked files, so gitignored
+#     virtualenvs (.venv / .venv313) and the frontend_dist/ frontend_ghpages/
+#     mirrors are excluded by construction — no stale skip_dirs entry can ever
+#     let a local red hide behind a green CI run (or vice versa). This mirrors
+#     tests/test_ci_config.py exactly, so the two guards cannot drift apart,
+#     and the venv rename that reopened this blind spot (.venv -> .venv313)
+#     can never reopen it again.
 def syntax_gate_coverage_contract():
     import re
+    import subprocess
     from pathlib import PurePosixPath
 
     root = os.path.abspath(
@@ -307,20 +309,20 @@ def syntax_gate_coverage_contract():
     assert m, "quality-gate must keep a `python -m py_compile` syntax step"
     patterns = m.group(1).split()
 
-    skip_dirs = {
-        ".git", ".github", ".workbuddy", "__pycache__", "node_modules",
-        "build", "dist", "frontend_dist", "frontend_ghpages",
-        ".venv", "venv", ".mypy_cache", ".pytest_cache",
-    }
-    uncovered = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
-        for fn in filenames:
-            if not fn.endswith(".py"):
-                continue
-            rel = os.path.relpath(os.path.join(dirpath, fn), root).replace(os.sep, "/")
-            if not any(PurePosixPath(rel).match(p) for p in patterns):
-                uncovered.append(rel)
+    # Derive the file list from git — the same source test_ci_config.py uses.
+    # This is the local mirror of the CI syntax gate, so it MUST match what
+    # GitHub actually compiles. Tracked files only => gitignored virtualenvs
+    # and frontend mirrors stay out of scope by construction.
+    out = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=root, capture_output=True, text=True, check=True,
+    )
+    tracked = [line for line in out.stdout.splitlines() if line.strip()]
+
+    uncovered = [
+        rel for rel in tracked
+        if not any(PurePosixPath(rel).match(p) for p in patterns)
+    ]
 
     assert not uncovered, (
         "outside the CI syntax gate (a syntax error in these would pass CI "
