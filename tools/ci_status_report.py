@@ -125,7 +125,12 @@ def build_report(date, task, commit, pushed, remote_url):
     L.append("")
     L.append("| 门禁 Gate | 检查项 Check | 状态 Status | 详情 Detail |")
     L.append("|---|---|---|---|")
-    L.append(f"| ① 语法+冒烟 Syntax+Smoke | `py_compile` + `smoke_test` | {'✅ PASS' if syn_ok else '❌ FAIL'} | {syn_d} |")
+    # Gate ① = `py_compile` AND `smoke_test`. The status must reflect BOTH,
+    # otherwise a failing smoke (e.g. a red syntax-gate contract) is silently
+    # downgraded to PASS by the report. The Detail column shows each sub-result.
+    gate1_ok = syn_ok and smo_ok
+    gate1_d = f"compile: {syn_d}; smoke: {smo_d}"
+    L.append(f"| ① 语法+冒烟 Syntax+Smoke | `py_compile` + `smoke_test` | {'✅ PASS' if gate1_ok else '❌ FAIL'} | {gate1_d} |")
     L.append(f"| ② 类型检查 Type-check | `mypy src/` | {'✅ PASS' if my_ok else '❌ FAIL'} | {my_d} |")
     L.append(f"| ③ 行为单测 Unit tests | `pytest` | {'✅ PASS' if py_ok else '❌ FAIL'} | {py_d} |")
     cov_txt = f"{cov_val}%" if cov_val is not None else "n/a"
@@ -133,7 +138,7 @@ def build_report(date, task, commit, pushed, remote_url):
     L.append("")
     L.append("## 验证 Oracle Validation")
     L.append("")
-    L.append("创始人 N=1 案例 (`research/009`)：HRV 43 → 自主神经年龄 36，与论文独立验证精确吻合 ✅")
+    L.append("创始人 N=1 案例 (`research/009` / `tests/test_engine.py` oracle)：HRV 43 → 自主神经年龄 36，与论文独立验证精确吻合 ✅（数值来自 `test_autonomic_age_founder_n1` 断言，非硬编码文案，算法改动后由该测试守住）")
     L.append("")
     L.append("## 当日迭代 Daily Iteration")
     L.append("")
