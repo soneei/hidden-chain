@@ -22,7 +22,7 @@ Hidden Chain 把**穿戴式 HRV** 变成三层可读输出：**Hidden Chain Scor
                                        │
               ┌────────────────────────┴────────────────────────┐
               ▼                                                  ▼
-        tcm_theory (纯理论)                              tcm_ontology (89 条本体)
+        tcm_theory (纯理论)                              tcm_ontology (90 条本体)
               │                                                  │
               │  EvidenceGrade / 5 轴定义                        │ 家族查询
               ▼                                                  │
@@ -49,7 +49,7 @@ Hidden Chain 把**穿戴式 HRV** 变成三层可读输出：**Hidden Chain Scor
 | 模块 | 关键符号 | 是否依赖 HRV | 职责 |
 |---|---|---|---|
 | `tcm_theory.py` | `SyndromeId`, `EvidenceGrade`, `SYNDROME_SPECS`, `COMPOSITE_SYNDROMES`, `TCM_DISCLAIMER`, `HRV_PROXY_OVERVIEW` | 否 | 5 单证教材定义（辨证要点/舌脉/八纲/脏腑/鉴别诊断）+ 复合证型识别规则 + 证据等级枚举 + 合规声明 |
-| `tcm_ontology.py` | `TCM_SYNDROME_CATALOG`(89), `validate_catalog()`, `hrv_detectable_entries()`, `catalog_by_organ/principle/etiology`, `catalog_stats()` | 否 | 三轴正交本体（八纲/五脏六腑/六淫病因），每条含 `hrv_detectable`/`evidence`/`citations` |
+| `tcm_ontology.py` | `TCM_SYNDROME_CATALOG`(90), `validate_catalog()`, `hrv_detectable_entries()`, `catalog_by_organ/principle/etiology`, `catalog_stats()` | 否 | 三轴正交本体（八纲/五脏六腑/六淫病因），每条含 `hrv_detectable`/`evidence`/`citations` |
 | `tcm_hrv_estimator.py` | `HRVFeatures`, `TCMAssessment`, `estimate_tcm()`, `PRIMARY_MIN_SCORE=50` | 是 | HRV 特征 → 5 轴分数 → 主证/兼证/证据等级/声明 |
 | `tcm_report.py` | `build_tcm_report()`, `render_markdown()`, `FamilyCluster`, `FamilyMember`, `TCMReport` | 消费 assessment | 量化轴 + 相关家族 + 必须面诊清单 |
 
@@ -57,18 +57,18 @@ Hidden Chain 把**穿戴式 HRV** 变成三层可读输出：**Hidden Chain Scor
 
 ## 3. TCM 本体的三轴正交模型
 
-89 条临床常见证型，按临床推理的**三个正交维度**组织：
+90 条临床常见证型，按临床推理的**三个正交维度**组织：
 
 1. **八纲 (Eight Principles)**：`yin / yang / exterior / interior / cold / heat / deficiency / excess`
 2. **五脏六腑 (Zang-Fu)**：心/肝/脾/肺/肾/胃/小肠/大肠/膀胱/胆/三焦（11 脏腑）
 3. **病因 (Etiology)**：六淫 / 七情 / 饮食劳逸 / 病理产物（痰饮/瘀血/结石/食滞）/ 其他
 
-大类分布：`zang_fu`(~52) / `qi_blood_fluid`(~17) / `exterior_pathogen`(~17)。
+大类分布：`zang_fu`(56) / `qi_blood_fluid`(18) / `exterior_pathogen`(16)。
 
 **`SyndromeCatalogEntry` 字段**：`id, name_cn, name_en, category, organ_system, eight_principle, etiology, differentiation_points, tongue_pulse, patho, hrv_detectable, evidence, notes, citations`。
 
 ### 3.1 合规关键：`hrv_detectable`
-- 仅 **~17 / 89** 条 `hrv_detectable=True`（确有自主神经/迷走证据：肝郁/肝火/肝阳/心系/脾气虚/肺气虚/肾阴阳虚/气虚/气滞/血虚/血瘀/气血两虚/痰证）。
+- 仅 **~17 / 90** 条 `hrv_detectable=True`（确有自主神经/迷走证据：肝郁/肝火/肝阳/心系/脾气虚/肺气虚/肾阴阳虚/气虚/气滞/血虚/血瘀/气血两虚/痰证）。
 - 其余 `hrv_detectable=False` 仅供审计 + 报告引用，**引擎绝不据 HRV 打分**。
 - `validate_catalog()` 强制：`hrv_detectable` 必须配非 `NONE` 证据；`MODERATE/STRONG` 必须有非空 `citations`。
 
@@ -150,7 +150,7 @@ python tools/run_pilot.py --sample --out .workbuddy/pilot_reports
 
 | 关 | Job | 命令 | 失败即阻断 |
 |---|---|---|---|
-| ① 语法+冒烟 | `quality-gate` (py3.10–3.12) | `py_compile src/*.py tests/*.py` + `python tests/smoke_test.py` | ✓ |
+| ① 语法+冒烟 | `quality-gate` (py3.10–3.12) | `py_compile src/*.py tests/*.py server.py tools/*.py tools/*/*.py` + `python tests/smoke_test.py` | ✓ |
 | ② 类型 | `type-check` (py3.12) | `mypy src/`（读 `pyproject.toml`） | ✓ |
 | ③ 单测 | `unit-tests` (py3.12) | `pytest tests/ --cov=src` | ✓ |
 | ④ 覆盖率 | 同上 (`[tool.coverage.report] fail_under=80`) | 核心算法覆盖率 ≥ 80 % | ✓ |
@@ -176,7 +176,7 @@ python tools/run_pilot.py --sample --out .workbuddy/pilot_reports
 
 ## 9. 已知边界与后续
 
-- **待人工**：请执业中医师逐条审校 `tcm_ontology.py` 的 89 条辨证要点/舌脉/病因病机（尤其复合证型与外感传变）。
+- **待人工**：请执业中医师逐条审校 `tcm_ontology.py` 的 90 条辨证要点/舌脉/病因病机（尤其复合证型与外感传变）。
 - **HRV→TCM 证据仍弱**：多数条目为 WEAK/NONE；随真实文献回填可升 MODERATE（须带引用）。
 - **Web 表单**：`server.py` 表单部分交互（提交响应/日期选择器/mood tag）待浏览器人工验证修复。
 - **部署**：Render.com 公网部署待凭据与 `Procfile` 配置（已存在 `Procfile`）。

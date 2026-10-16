@@ -264,7 +264,7 @@ src/
 research/                  15+ papers & design notes (Tier-1/2 quality standard)
 design/                    Architecture vision & DTx roadmap
 tools/                     run_pilot.py, ci_status_report.py, tcm_report_demo.py
-tests/                     smoke + pytest suites (106 passed, ~91 % core coverage)
+tests/                     smoke + pytest suites (223 passed, 91.70 % core coverage)
 server.py                  Flask API — SQLite, multi-user
 ARCHITECTURE.md            Detailed module map & data flow
 ```
