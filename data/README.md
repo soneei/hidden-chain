@@ -15,21 +15,19 @@ Use `daily_log_template.csv` as a starting point. Columns:
 | sleep_hours | float | No | Hours slept last night |
 | exercise | text | No | e.g. "run", "yoga", "rest" |
 
-## Legacy format (Excel)
+## Legacy format (Excel) — 未实现 / 设计设想
 
-Works with `hidden_chain_dataset_updated.xlsx` from previous Hidden Chain builds.
+> ⚠️ **以下内容从未实现，仅作为早期设计设想保留，不代表当前代码能力。**
+> 本仓库 `src/` 目录**不含任何 `pandas` 引用**，`data_loader.py` 只提供 CSV 加载（`read_pilot_csv` 等），**没有** `hidden_chain_dataset_updated.xlsx` 自动映射路径。请勿依赖此段。
 
-Fields mapped automatically by `data_loader.py`:
-- `hrv` → rmssd
-- `resting_hr` → heart_rate
-- `menstrual_phase` → cycle_day (via Chinese text → day mapping)
-- `emotional_health` → mood_score
+早期设想：兼容上一版 Hidden Chain 的 `hidden_chain_dataset_updated.xlsx`，由 `data_loader.py` 自动映射字段（如 `hrv` → rmssd、`resting_hr` → heart_rate、`menstrual_phase` → cycle_day、`emotional_health` → mood_score）。该 Excel 适配层在当前代码库中不存在。
 
 ## Running the engine
 
 ```bash
 cd src
-python data_loader.py          # feeds your real Huawei data into the engine
 python hrv_engine.py            # runs with mock data to verify the pipeline
 python hidden_chain_score.py    # standalone Hidden Chain Score demo
 ```
+
+> 注：`data_loader.py` 没有 `if __name__ == "__main__"` 入口，不能通过上述 `python data_loader.py` 直接运行；真实数据请走 `daily_log_template.csv` + `read_pilot_csv`（见上方「Daily log (recommended)」段）。
