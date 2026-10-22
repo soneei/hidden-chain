@@ -1,5 +1,8 @@
 # Intelligent Interaction Layer — Design Vision
 
+> **⚠️ 设计愿景（roadmap），部分未实现；实际 schema 以 `server.py` 为准。**
+> 本文档描述 v0.3 / v0.5 / v1.0 的演进路线图与交互设想：v0.5 的 `device_adapters.py`（多品牌手表导入）当前为**孤儿模块**（无功能调用），v1.0 的 chat bot（钉钉/Telegram/Streamlit）**未实现**。下方「Data architecture」的 `CREATE TABLE` 已与 `server.py:40-58` 的实际建表语句逐项对齐（列名、类型、默认值、索引一致），如需权威定义仍以 `server.py` 代码为准。
+
 ## The problem
 
 Users have data from multiple watch brands (Huawei, Apple, OPPO) stored in manual Excel logs. Current flow: export → copy-paste → run script. Nobody will do this daily.
@@ -77,18 +80,24 @@ Implementation paths:
 All user data stored in `data/hidden_chain.db` (SQLite):
 
 ```sql
+-- 实际建表语句见 server.py:40-58（AUTOINCREMENT / DEFAULT / 迁移补列 mood_tags 等）。
 CREATE TABLE daily_log (
-    id INTEGER PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT DEFAULT 'default',
     date TEXT NOT NULL,
-    device TEXT,
+    device TEXT DEFAULT 'manual',
     hrv_rmssd REAL NOT NULL,
     resting_hr REAL NOT NULL,
-    cycle_day INTEGER,
+    cycle_day INTEGER NOT NULL,
     mood_score INTEGER,
+    mood_tags TEXT,
     sleep_hours REAL,
     event_label TEXT,
     hcs_score INTEGER,
+    phase TEXT,
+    qi_blood REAL,
+    liver_depression REAL,
+    spleen_deficiency REAL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
