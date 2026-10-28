@@ -31,6 +31,7 @@ Every paper in this folder must meet **at least one** of the following:
 | 003 | Thayer & Lane 2009 — Neurovisceral integration model | Tier 1 | Foundational |
 | 004 | Shaffer & Ginsberg 2017 — HRV norms by age | Tier 1 | 2025 |
 | 005 | de Jager 2025 + von Holzen 2016 — Female lifespan CVA | Tier 1+2 | 2026 |
-| 006 | Olivera-Toro 2019 — TCM pattern HRV quantification | Tier 2 | 2019 |
 | 007 | Cole 1999 (NEJM) — HRR mortality predictor | Tier 1 | 1999 |
 | 008 | Jarczok/Thayer 2019 — Disease risk thresholds | Tier 2 | 2019 |
+
+> **Note (2026-10-28)**: Entry 006 (Olivera-Toro 2019) was archived as unverifiable — see `research/006` `[archived]` banner. It is no longer a valid Tier 2 source and was removed from this library. The literature table is intentionally kept to the verified entries only; expanding it to a full index of all `research/00X` notes requires human verification of each additional citation to avoid reintroducing unverifiable sources.

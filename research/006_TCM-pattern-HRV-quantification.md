@@ -1,16 +1,13 @@
 # Track A Direction 3: TCM pattern differentiation ↔ HRV quantification
 
-## Primary sources
-
-**Olivera-Toro et al. (2019)** — *J Acupuncture & Meridian Studies*
-**NRICM Taiwan menopause study** (2010)
-**Yang et al. (2008)** — *Medical Research Journal*, China
+> **[archived — primary sources unverifiable, evidence superseded by research/016]**
+> Formerly cited as primary sources (now removed as unverifiable): **Olivera-Toro et al. 2019** (J Acupuncture & Meridian Studies), **NRICM Taiwan menopause study 2010**, **Yang et al. 2008** (Medical Research Journal). Directional conclusions below are retained for record only; do **not** cite the three sources. Verified real-person evidence for the 5-axis mapping now lives in `research/016_hrv_tcm_chinese_evidence.md`; the Shaffer 2017 norms anchor is retained in `research/004`.
 
 ## Core finding: TCM patterns have measurable HRV signatures
 
-All three papers independently confirm that TCM diagnoses (辨证) produce distinct, quantifiable autonomic profiles measurable by HRV. This is the bridge between our Thayer NVI model and TCM diagnostics.
+The three previously-cited studies (now unverifiable) claimed that TCM diagnoses (辨证) produce distinct, quantifiable autonomic profiles measurable by HRV. This is the intended bridge between our Thayer NVI model and TCM diagnostics — directional claim retained, sources not.
 
-## 1. Spleen-Qi Deficiency (脾虚) — Olivera-Toro 2019
+## 1. Spleen-Qi Deficiency (脾虚)
 
 | Metric | Control | Spleen Def | Change |
 |---|---|---|---|
@@ -26,7 +23,7 @@ All three papers independently confirm that TCM diagnoses (辨证) produce disti
 
 **Hidden Chain link**: Directly supports our spleen_score mapping: low vagal (HF/RMSSD) + high fatigue = spleen deficiency.
 
-## 2. Liver Depression × HRV (肝郁气滞/肝郁化火) — NRICM 2010 + Yang 2008
+## 2. Liver Depression × HRV (肝郁气滞/肝郁化火)
 
 | Pattern | HRV signature |
 |---|---|
@@ -36,10 +33,10 @@ All three papers independently confirm that TCM diagnoses (辨证) produce disti
 
 **Key finding**: Liver depression patterns are the MOST disruptive to vagal function — even more than spleen or heart patterns. This matches the TCM theory: 肝主疏泄, when the liver's "free flow" is blocked, autonomic regulation collapses.
 
-## 3. Heart-Blood Deficiency (心血虚) — NRICM 2010
+## 3. Heart-Blood Deficiency (心血虚)
 
 - Sympathetic ↑, parasympathetic ↓
-- Correlates with palpitations, palpitations (心悸), insomnia
+- Correlates with palpitations (心悸), insomnia
 - HRV time-domain (RR) significantly negatively correlated with symptom scores
 
 ## 4. Quantitative mapping table for Hidden Chain
@@ -53,11 +50,9 @@ All three papers independently confirm that TCM diagnoses (辨证) produce disti
 
 ## Relevance to Hidden Chain
 
-1. **Validation**: The TCM↔HRV mapping we built is scientifically confirmed by 3 independent papers in China, Taiwan, and Mexico
-2. **Threshold refinement**: Spleen deficiency → SDNN 17% lower than age norm. We can use this instead of arbitrary numbers
-3. **Liver depression → recovery slowness**: This maps perfectly to our recovery_metrics — "slow" recovery classification now has TCM backing
-4. **Phlegm turbidity (痰气互结)**: Only after cycle calibration (排除周期影响), if HRV is still abnormal. This was already our design.
+1. **Validation**: The TCM↔HRV mapping direction is supported by multiple studies (sources now unverifiable — see archived note above).
+2. **Threshold refinement**: Spleen deficiency → SDNN 17% lower than age norm (per archived source; treat as directional, not calibrated).
+3. **Liver depression → recovery slowness**: Maps to our recovery_metrics — "slow" recovery classification has TCM backing.
+4. **Phlegm turbidity (痰气互结)**: Only after cycle calibration (排除周期影响), if HRV is still abnormal. Already our design.
 
-**Journal tier**: Olivera-Toro = Q3 (J Acupunct Meridian Stud), NRICM = National Research (Chinese), Yang = Chinese medical journal. These papers are not Q1 but they provide direct evidence for TCM↔HRV mapping that Q1 papers don't cover.
-
-**Last verified**: 2019 (Olivera-Toro), 2010/2008 (older but the TCM diagnostic criteria haven't changed)
+> **Superseded**: For verified real-person HRV↔TCM evidence with sample sizes and ethics approval, use `research/016_hrv_tcm_chinese_evidence.md`. The absolute thresholds above remain direction-only until re-calibrated against a health-population norm.

@@ -137,8 +137,9 @@ class RecoveryMetrics:
 # TCMMetrics 已迁移至 tcm_hrv_estimator.TCMAssessment（见顶部 import 别名）。
 # 理论层（证型定义/辨证要点/舌脉/八纲/复合证型）在 tcm_theory.py，
 # 代理层（HRV→证候倾向性）在 tcm_hrv_estimator.py，二者分离便于审计。
-# 五主轴分数算法与原实现保持一致（Shaffer 2017 / NRICM 2010 /
-# Olivera-Toro 2019 / Yang 2008），新增 primary_syndrome / secondary_syndromes
+# 五主轴分数算法与原实现保持一致（数值不变；原引用的不可核实锚点已移除，
+# 已核实锚点为 Shaffer 2017（research/004）与 research/016 的真人验证证据），
+# 新增 primary_syndrome / secondary_syndromes
 # （肝郁脾虚等复合证型）/ evidence（证据等级）/ disclaimer（非诊断声明）。
 
 # 第 5 层：调节指数输出

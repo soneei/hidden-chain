@@ -10,8 +10,10 @@ Design (audit-friendly separation from tcm_theory.py):
 
 The five primary scores (qi_blood_deficiency / liver_depression /
 spleen_deficiency / phlegm_turbidity / yin_yang_balance) preserve the
-original HRV→score mapping (grounded in Shaffer 2017, NRICM 2010,
-Olivera-Toro 2019, Yang 2008) so existing behavioral tests stay valid.
+original HRV→score mapping. Numeric thresholds are unchanged; the previously
+cited unverifiable anchors were removed — verified anchors are Shaffer 2017
+(research/004) and the real-person Chinese evidence in research/016. Existing
+behavioral tests stay valid.
 On top of that we now EMIT:
   - primary_syndrome  : argmax of the five axes
   - secondary_syndromes : composite patterns (肝郁脾虚 etc.) via tcm_theory rules
