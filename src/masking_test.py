@@ -22,6 +22,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
+Row = dict                    # one daily record; shared alias for the harness
 TARGET = "hrv_rmssd"          # the single pre-registered primary target
 WARMUP = 28                   # days of history required before any eval day
 DEFAULT_SEEDS = list(range(1, 31))   # seeds 1..30, frozen in the plan

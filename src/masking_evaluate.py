@@ -18,14 +18,16 @@ Pure stdlib.
 from __future__ import annotations
 
 import statistics
-from typing import Callable
+from typing import Callable, Optional
 
 from masking_baselines import (b1a_persistence, b1b_mean7, b2_phase_mean,
                                b3_rules_prior)
 from masking_model import m_ridge
-from masking_test import MaskSplit, TARGET, build_splits
+from masking_test import MaskSplit, Row, TARGET, build_splits
 
-METHODS: dict[str, Callable] = {
+# B3 and M need runtime context (the rules spec), so they are bound by the
+# CLI before the run starts; None here means "not yet bound".
+METHODS: dict[str, Optional[Callable]] = {
     "B1a_persistence": b1a_persistence,
     "B1b_mean7": b1b_mean7,
     "B2_phase_mean": b2_phase_mean,
@@ -104,9 +106,9 @@ def summarize(results: list[dict]) -> dict:
     table = {m: {s: cell(s, m) for s in
                  ("point", "block1", "block3", "block7", "rolling7")}
              for m in list(METHODS)}
-    best_base = min((table[b][PRIMARY_STRATEGY] for b in BASELINE_NAMES
-                     if table[b][PRIMARY_STRATEGY] is not None),
-                    default=None)
+    candidates: list[float] = [v for b in BASELINE_NAMES
+                               if (v := table[b][PRIMARY_STRATEGY]) is not None]
+    best_base: Optional[float] = min(candidates) if candidates else None
     m_mae = table["M_ridge"][PRIMARY_STRATEGY]
     m_dir = cell(PRIMARY_STRATEGY, "M_ridge", "dir_acc")
 

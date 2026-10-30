@@ -47,7 +47,7 @@ def load_daily_csv(path: str) -> list[dict]:
     return parsed
 
 
-def main() -> None:
+def main() -> int:
     ap = argparse.ArgumentParser(description="Hidden Chain masking test")
     ap.add_argument("data", help="daily CSV (data/daily_log_template.csv schema)")
     ap.add_argument("--rules", default="data/rules_prior.json")
@@ -80,6 +80,7 @@ def main() -> None:
     print(f"MAE reduction:     {s.get('mae_reduction', float('nan')):.1%}")
     print(f"model dir acc:     {(s['model_dir_acc'] or 0):.1%}")
     print(f"\nVERDICT (pre-registered, plan §6.2): {s['verdict']}")
+    return 0
 
 
 if __name__ == "__main__":

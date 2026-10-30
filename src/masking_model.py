@@ -32,7 +32,7 @@ import math
 from typing import Optional
 
 from masking_baselines import last_visible_y, rule_adjust, visible_mean_y
-from masking_test import MaskSplit, TARGET
+from masking_test import MaskSplit, Row, TARGET
 
 FEATURE_NAMES = [
     "last_y", "mean7_hist", "mean28_hist", "trend",
