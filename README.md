@@ -227,6 +227,28 @@ A fillable template lives at `data/pilot/real_template.csv` (local only, not com
 
 ---
 
+## 🔭 Does it actually predict? — the g-test
+
+A world model only counts if it can **generate observations it never saw**.
+The engine has `q` (assimilate observations → latent state) and a hand-written
+`f` (state → next state). What was missing is `g` (state → predicted
+observations) — and without it the system can only explain while the watch is
+on, never forecast when it is off.
+
+`design/masking-test-plan-v1.md` pre-registers the test: mask days out of the
+record, regenerate them from the latent state, compare against four baselines.
+
+```bash
+python tools/intake_daily.py ~/Downloads/huawei_export/*.csv --out data/daily_log.csv
+python src/run_masking_test.py data/daily_log.csv --rules data/rules_prior.json
+```
+
+The verdict is frozen **in advance**: beat the *best* baseline by ≥10% MAE with
+≥60% direction accuracy → `g-exists`. Because the thresholds are written down
+first, the answer cannot be quietly edited afterwards. See
+`docs/n1-data-intake.md` — no new observation period is required, you export
+what the watch already recorded.
+
 ## ⚖️ Compliance & red lines
 
 > **本输出为【基于 HRV 的中医证候倾向性评估】，非中医诊断 / 辨证结论。**

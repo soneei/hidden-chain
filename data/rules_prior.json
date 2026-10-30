@@ -1,0 +1,42 @@
+{
+  "version": "v1.0-2026-10-30",
+  "target": "hrv_rmssd",
+  "note": "TCM rule engine demoted to a numeric prior (plan §5 B3). Direction and structure are hand-set from the research dossier; magnitude is frozen here and may only be recalibrated through the pre-registered v2 process. 'on_lag' 1 = condition reads the previous day's covariates, 0 = the target day's.",
+  "rules": [
+    {
+      "id": "sleep_debt",
+      "when": {"sleep_hours_lt": 6.0, "on_lag": 1},
+      "adjust": -4.0,
+      "direction": "sympathetic_tone_up",
+      "evidence": "research/004"
+    },
+    {
+      "id": "acute_exercise_dip",
+      "when": {"exercise_eq": "run", "on_lag": 1},
+      "adjust": -2.0,
+      "direction": "post_exertion_recovery",
+      "evidence": "research/003"
+    },
+    {
+      "id": "luteal_phase",
+      "when": {"cycle_day_ge": 15, "cycle_day_le": 28, "on_lag": 0},
+      "adjust": -3.0,
+      "direction": "progesterone_phase_hrv_suppression",
+      "evidence": "research/002"
+    },
+    {
+      "id": "menstrual_phase",
+      "when": {"cycle_day_le": 5, "on_lag": 0},
+      "adjust": -2.0,
+      "direction": "menstrual_phase_load",
+      "evidence": "research/002"
+    },
+    {
+      "id": "stress_event",
+      "when": {"event_label_eq": "meeting", "on_lag": 0},
+      "adjust": -1.5,
+      "direction": "acute_stress_load",
+      "evidence": "research/003"
+    }
+  ]
+}
